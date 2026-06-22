@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agente - Garvedrene System</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="/static/js/auth.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    .ce-wrap { margin: 0 auto; padding: 20px; min-height: calc(100vh - 50px); display: flex; flex-direction: column; max-width: 100%; }
+    .ce-body { display: flex; gap: 16px; flex: 1; min-height: 0; }
+    .ce-col-left  { width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+    .ce-col-center { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+    .ce-col-right { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+    .top-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 16px; }
+    .top-bar input[type="text"] { flex: 1; font-size: 18px; padding: 6px 10px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 6px; outline: none; }
+    .top-bar input[type="text"]:focus { border-color: var(--gold); }
+    .top-bar input[type="number"] { width: 55px; text-align: center; font-size: 16px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 4px; }
+    .top-bar select { font-size: 14px; padding: 4px 8px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 6px; }
+    .top-bar label { font-size: 12px; color: var(--text-dim); }
+    .bar-wrap { position: relative; height: 42px; border-radius: 8px; overflow: hidden; border: 1px solid #333; }
+    .bar-fill { height: 100%; transition: width 0.3s; }
+    .bar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; text-shadow: 0 1px 4px rgba(0,0,0,0.9); gap: 6px; z-index: 1; }
+    .bar-hp .bar-fill { background: linear-gradient(90deg, #c0392b, #e74c3c); } .bar-hp { border-color: #c0392b; }
+    .bar-mp .bar-fill { background: linear-gradient(90deg, #1a5276, #2980b9); } .bar-mp { border-color: #1a5276; }
+    .bar-wrap input { width: 48px; text-align: center; font-size: 14px; font-weight: 700; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 4px; padding: 2px 4px; }
+    .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; min-width: 0; }
+    .stat-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .stat-field label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; }
+    .stat-field input,.stat-field select { font-size: 13px; padding: 5px 8px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 5px; width: 100%; min-width: 0; }
+    .attr-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    .attr-card { position: relative; text-align: center; background: var(--bg-card); border: 2px solid var(--gold); border-radius: 14px; padding: 14px 6px 10px; transition: border-color 0.2s; }
+    .attr-card:hover { border-color: var(--gold-light); }
+    .attr-card .icon { font-size: 24px; margin-bottom: 2px; }
+    .attr-card .lbl { font-size: 10px; color: var(--gold); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .attr-card .val { font-size: 30px; font-weight: 900; line-height: 1.2; padding: 2px 0; }
+    .attr-card .mod { font-size: 11px; color: var(--text-dim); }
+    .salv-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .salv-card { position: relative; text-align: center; background: var(--bg-card); border: 1.5px solid var(--gold); border-radius: 10px; padding: 6px 2px 6px; transition: border-color 0.2s; }
+    .salv-card:hover { border-color: var(--gold-light); }
+    .salv-card .icon { font-size: 16px; }
+    .salv-card .lbl { font-size: 8px; color: var(--gold); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+    .salv-card .val { font-size: 20px; font-weight: 900; line-height: 1.1; }
+    .salv-card .mod { font-size: 9px; color: var(--text-dim); }
+    .salv-card .attr-btn { top: 1px; font-size: 10px; width: 16px; height: 16px; }
+    .salv-card .attr-roll { bottom: 1px; font-size: 12px; width: 18px; height: 18px; }
+    .attr-btn { position: absolute; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border); background: rgba(0,0,0,0.4); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; line-height: 1; transition: all 0.15s; padding: 0; }
+    .attr-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(0,0,0,0.6); }
+    .attr-btn.plus { top: 4px; right: 4px; }
+    .attr-btn.minus { top: 4px; left: 4px; }
+    .attr-roll { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: rgba(0,0,0,0.25); color: var(--text-dim); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; transition: all 0.15s; padding: 0; margin-top: 4px; }
+    .attr-roll:hover { border-color: var(--gold); color: var(--gold); background: rgba(0,0,0,0.5); }
+    .peri-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 16px; }
+    .peri-row { display: flex; align-items: baseline; gap: 0; padding: 4px 8px; border-radius: 4px; transition: background 0.1s; }
+    .peri-row:hover { background: rgba(255,255,255,0.04); }
+    .peri-row .name { flex-shrink: 0; font-size: 12px; color: var(--text); max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .peri-row .dot-lead { flex: 1; min-width: 6px; border-bottom: 1px dotted #555; margin: 0 4px; }
+    .peri-row .right-group { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+    .peri-row input { width: 40px; font-size: 12px; text-align: center; background: transparent; border: none; color: var(--green-light); border-radius: 0; padding: 2px; font-weight: 600; }
+    .peri-row input:focus { background: var(--bg-input); outline: none; }
+    .peri-row .roll-p { width: 24px; height: 24px; border-radius: 50%; border: none; background: transparent; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; transition: all 0.15s; flex-shrink: 0; padding: 0; }
+    .peri-row .roll-p:hover { background: var(--gold); color: #000; }
+    .section-title { font-size: 11px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .lcard { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px; }
+    .lcard-gold { border-color: var(--gold); }
+    .ag-chat-msg { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.03); }
+    .ag-chat-msg .ac-time { color: var(--text-dim); font-size: 9px; margin-right: 4px; }
+    .ag-chat-msg .ac-auth { font-weight: 600; }
+    .ag-chat-msg .ac-auth.mestre { color: var(--red); }
+    .ag-chat-msg .ac-auth.player { color: var(--gold); }
+    .ag-chat-msg .ac-auth.system { color: #4a9eff; }
+    .ag-chat-msg .ac-roll { color: var(--green-light); }
+    .chat-collapse {
+        overflow: hidden;
+        display: block;
+        max-height: 0;
+        transition: max-height 0.35s ease-out;
+    }
+    .chat-collapse.open {
+        max-height: 2000px;
+    }
+    .chat-inner-wrapper {
+        display: flex;
+        flex-direction: column;
+        height: 300px;
+    }
+    .chat-inner-wrapper .ag-chat-box {
+        flex: 1;
+        overflow-y: auto;
+        background: var(--bg-card);
+        border-bottom: 1px solid var(--border);
+    }
+    .chat-inner-wrapper .ag-chat-bar {
+        height: 40px;
+        display: flex;
+        align-items: center;
+        padding: 5px;
+        background: var(--bg-card);
+    }
+    .chat-inner-wrapper .ag-chat-bar input { flex: 1; min-width: 0; font-size: 12px; padding: 4px 8px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 4px; outline: none; }
+    .chat-inner-wrapper .ag-chat-bar .btn { flex-shrink: 0; }
+    input.no-spin::-webkit-inner-spin-button, input.no-spin::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input.no-spin { -moz-appearance: textfield; appearance: textfield; }
+    .roll-toast-cont { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    .roll-toast { pointer-events: auto; background: var(--bg-card); border: 1px solid var(--gold); border-radius: 10px; padding: 12px 16px; min-width: 260px; max-width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); animation: rtIn 0.3s ease; }
+    .roll-toast.out { animation: rtOut 0.3s ease forwards; }
+    @keyframes rtIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes rtOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
+    .roll-toast-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .roll-toast-head .name { font-weight: 700; font-size: 13px; color: var(--gold); }
+    .roll-toast-head .cl { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 0; line-height: 1; }
+    .roll-toast-head .cl:hover { color: #fff; }
+    .roll-toast-body { display: flex; flex-direction: column; gap: 4px; }
+    .roll-toast-body .res { font-size: 28px; font-weight: 900; color: var(--green-light); }
+    .roll-toast-body .det { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+    .inv-tabs { display: flex; gap: 2px; margin-bottom: 8px; flex-shrink: 0; background: #111; border-radius: var(--radius); padding: 3px; }
+    .inv-tabs .tab-btn { padding: 6px 14px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: var(--text-dim); transition: all 0.15s; flex: 1; text-align: center; }
+    .inv-tabs .tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .inv-tabs .tab-btn.active { background: var(--gold); color: #000; }
+    .right-scroll { flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; }
+    .acc-group { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .acc-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: border-color 0.2s; }
+    .acc-item:hover { border-color: var(--gold); }
+    .acc-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; cursor: pointer; user-select: none; transition: background 0.15s; }
+    .acc-header:hover { background: rgba(255,255,255,0.04); }
+    .acc-header .arrow { font-size: 10px; color: var(--text-dim); transition: transform 0.2s; width: 12px; text-align: center; flex-shrink: 0; }
+    .acc-header .arrow.open { transform: rotate(90deg); }
+    .acc-header .acc-name { flex: 1; font-weight: 600; font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .acc-header .acc-tag { font-size: 10px; color: var(--text-dim); padding: 2px 8px; border-radius: 4px; background: var(--bg-input); flex-shrink: 0; }
+    .acc-header .acc-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .acc-body { display: none; padding: 0 14px 12px; font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+    .acc-body.open { display: block; }
+    .acc-body textarea, .acc-body input, .acc-body select { font-size: 12px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 5px 8px; outline: none; width: 100%; margin-top: 4px; }
+    .acc-body textarea:focus, .acc-body input:focus { border-color: var(--gold); }
+    .acc-body .edit-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .acc-body .edit-row > * { flex: 1; min-width: 70px; }
+    .btn-help { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; transition: all 0.15s; line-height: 1; }
+    .btn-help:hover { border-color: var(--gold); color: var(--gold); background: rgba(255,255,255,0.05); }
+    .cmd-modal { display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
+    .cmd-modal.open { display: flex; }
+    .cmd-modal-box { background: var(--bg-card); border: 1px solid var(--gold); border-radius: var(--radius-lg); padding: 24px; max-width: 420px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .cmd-modal-box h3 { margin: 0 0 16px; font-size: 14px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; }
+    .cmd-row { padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .cmd-row:last-child { border-bottom: none; }
+    .cmd-row code { color: var(--green-light); font-size: 12px; }
+    .cmd-row .cmd-desc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .espacos-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; padding: 6px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; flex-shrink: 0; }
+    .espacos-bar.hidden { display: none; }
+    .add-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-shrink: 0; }
+    .add-bar input { flex: 1; font-size: 12px; padding: 6px 10px; background: var(--bg-input); border: 1px dashed var(--border); color: var(--text); border-radius: 6px; outline: none; }
+    .add-bar input:focus { border-color: var(--gold); border-style: solid; }
+    .roll-sm { width: 22px; height: 22px; border-radius: 50%; border: none; background: transparent; color: var(--text-dim); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; padding: 0; transition: all 0.15s; margin-top: 4px; }
+    .roll-sm:hover { background: var(--gold); color: #000; }
+    @media (max-width: 1000px) {
+      .ce-body { flex-direction: column; }
+      .ce-col-left, .ce-col-center, .ce-col-right { width: 100% !important; flex-shrink: 1; }
+      .attr-grid, .salv-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="navbar">
+  <div class="navbar-brand">⚔️ GARVEDRENE SYSTEM</div>
+  <div class="navbar-info">
+    <span id="caNomeCampanha" style="font-size:12px;color:var(--gold);margin-right:12px;"></span>
+    <span id="userName" style="font-size:13px;color:var(--text-dim);margin-right:8px;"></span>
+    <button class="btn btn-ghost btn-sm" id="btnVoltar" onclick="voltarCampanha()">← Voltar para Campanha</button>
+  </div>
+</div>
+
+<div class="ce-wrap">
+  <div class="top-bar">
+    <input type="text" id="ceNome" placeholder="Nome do Personagem" oninput="onDirty()">
+    <label>Nv</label>
+    <input type="number" id="ceNivel" value="1" class="no-spin" oninput="onDirty()">
+    <select id="ceClasse" onchange="onDirty()">
+      <option>Bruxo</option><option>Feiticeiro</option><option>Suporte</option><option>Guerreiro</option><option>Mago</option>
+    </select>
+    <span style="flex:1;"></span>
+    <button class="btn btn-gold" id="btnSalvar">💾 Salvar</button>
+    <button class="btn btn-ghost btn-sm" id="btnDeletarNpc" style="color:var(--red);display:none;" onclick="deletarNpc()">🗑️</button>
+    <span id="saveStatus" style="font-size:11px;color:var(--green-light);display:none;">✅ Salvo</span>
+  </div>
+
+  <div class="ce-body">
+    <div class="ce-col-left">
+      <div class="lcard lcard-gold">
+        <div class="section-title" style="margin-bottom:10px;">Status Vitais</div>
+        <div class="bar-wrap bar-hp">
+          <div class="bar-fill" id="ceBarHpFill" style="width:100%"></div>
+          <div class="bar-text">❤️ <input type="number" id="ceHpAt" value="20" class="no-spin" oninput="onDirty()"> / <input type="number" id="ceHpMx" value="20" class="no-spin" oninput="onDirty()"></div>
+        </div>
+        <div style="height:8px;"></div>
+        <div class="bar-wrap bar-mp">
+          <div class="bar-fill" id="ceBarMpFill" style="width:100%"></div>
+          <div class="bar-text">💧 <input type="number" id="ceMpAt" value="20" class="no-spin" oninput="onDirty()"> / <input type="number" id="ceMpMx" value="20" class="no-spin" oninput="onDirty()"></div>
+        </div>
+      </div>
+
+      <div class="lcard">
+        <div class="status-grid">
+          <div class="stat-field"><label>🛡️ CA</label><input type="number" id="ceCA" value="10" class="no-spin" oninput="onDirty()"></div>
+          <div class="stat-field"><label>✨ Elemento</label><select id="ceElemento" onchange="onDirty()"><option>IGNIS</option><option>AQUA</option><option>VENTUS</option><option>TERRA</option><option>NATURA</option><option>ANIMA</option></select></div>
+          <div class="stat-field"><label>🌀 Caminho</label><select id="ceCaminho" onchange="onDirty()"><option>Fogo</option><option>Luz</option><option>Eletricidade</option><option>Gelo</option><option>Água</option><option>Vapor</option><option>Clima</option><option>Vento</option><option>Areia</option><option>Metal</option><option>Pedra</option><option>Cristal</option><option>Planta</option><option>Animal</option><option>Regeneração</option><option>Arte</option><option>Música</option><option>Esporte</option><option>Teatro</option><option>Misto</option></select></div>
+          <div class="stat-field"><label>📜 Origem</label><input type="text" id="ceOrigem" placeholder="Background..." oninput="onDirty()"></div>
+        </div>
+      </div>
+
+      <div class="lcard" id="chatSection">
+        <div class="section-title" onclick="toggleChat()" style="cursor:pointer;">💬 Chat <span id="chatArrow" style="font-size:9px;color:var(--text-dim);margin-left:auto;">[▼]</span></div>
+        <div class="chat-collapse" id="chatCollapse">
+          <div class="chat-inner-wrapper">
+            <div class="ag-chat-box" id="agChatBox"></div>
+            <div class="ag-chat-bar" id="agChatBar">
+              <input type="text" id="agChatInput" placeholder="Mensagem...">
+              <button class="btn btn-gold btn-sm" onclick="enviarChatAg()">Enviar</button>
+              <button class="btn-help" onclick="mostrarComandos()" title="Comandos">?</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ce-col-center">
+      <div class="lcard">
+        <div class="section-title">Atributos</div>
+        <div class="attr-grid" id="ceAtributos"></div>
+        <div style="margin-top:12px;">
+          <div class="section-title" style="margin-bottom:4px;font-size:10px;">🛡️ Salvaguardas</div>
+          <div class="salv-grid" id="ceSalvaguardas"></div>
+        </div>
+      </div>
+      <div class="lcard">
+        <div class="section-title">Perícias</div>
+        <div class="peri-list" id="cePericias"></div>
+      </div>
+    </div>
+
+    <div class="ce-col-right">
+      <div class="section-title" style="margin-bottom:4px;flex-shrink:0;">Inventário & Habilidades</div>
+      <div class="inv-tabs">
+        <button class="tab-btn active" id="tabInventario" onclick="swTab('inventario')">⚔️ Itens</button>
+        <button class="tab-btn" id="tabHabilidades" onclick="swTab('habilidades')">✨ Habilidades</button>
+        <button class="tab-btn" id="tabMagias" onclick="swTab('magias')">🔮 Magias</button>
+      </div>
+      <div class="espacos-bar" id="espacosBar">
+        <span style="font-size:12px;color:var(--text-dim);flex-shrink:0;">🎒 Espaços</span>
+        <input type="number" id="ceEspAt" value="0" class="no-spin" style="width:52px;text-align:center;font-size:13px;padding:3px;" readonly>
+        <span style="color:var(--text-dim);font-size:14px;">/</span>
+        <input type="number" id="ceEspMx" value="10" class="no-spin" style="width:52px;text-align:center;font-size:13px;padding:3px;">
+      </div>
+      <div class="add-bar">
+        <input type="text" id="tabAddInput" placeholder="Nome do item..." onkeydown="if(event.key==='Enter')addItem()">
+        <button class="btn btn-green btn-sm" onclick="addItem()">+ Adicionar</button>
+      </div>
+      <div class="right-scroll" id="tabContent"></div>
+    </div>
+  </div>
+</div>
+
+<div class="roll-toast-cont" id="rollToastCont"></div>
+
+<script>
+if (!isLoggedIn()) {
+  localStorage.setItem('redirect_after_login', window.location.href);
+  window.location.href = '/';
+}
+
+// ── Route params ──────────────────────────────────────────────
+const pathParts = window.location.pathname.split('/');
+const campaignId = pathParts[2];
+const isNpc = pathParts[3] === 'npc';
+const characterId = pathParts[4];
+let masterCharId = characterId;
+let isMaster = false;
+let campaignName = '';
+let agWs = null, agWsInterval = null;
+
+const ATRIBUTOS = ["Força","Agilidade","Vigor","Inteligência","Espírito"];
+const ATTR_ICONES = {"Força":"💪","Agilidade":"⚡","Vigor":"❤️","Inteligência":"🧠","Espírito":"✨"};
+const PERICIAS_MAP = {
+  "Adestramento (E)":"Espírito","Artes (I/E)":"Inteligência","Atletismo (F/A)":"Força",
+  "Ciências (I)":"Inteligência","Crime (I)":"Inteligência","Culinária (I)":"Inteligência",
+  "Diplomacia (E)":"Espírito","Enganação (E)":"Espírito","Fortitude (V)":"Vigor",
+  "Furtividade (A)":"Agilidade","História (I)":"Inteligência","Iniciativa (A)":"Agilidade",
+  "Intimidação (E)":"Espírito","Intuição (E)":"Espírito","Investigação (I)":"Inteligência",
+  "Luta (F)":"Força","Medicina (I)":"Inteligência","Natureza (I)":"Inteligência",
+  "Percepção (E)":"Espírito","Pilotagem (I)":"Inteligência","Pontaria (A)":"Agilidade",
+  "Profissão (I)":"Inteligência","Reflexos (A)":"Agilidade","Sobrevivência (I)":"Inteligência",
+  "Sorte (E)":"Espírito","Tecnologia (I)":"Inteligência"
+};
+function attrBonus(v) { return Math.floor((parseInt(v||8)-10)/2); }
+
+// ── Data State ────────────────────────────────────────────────
+let dados = {
+  atributos: {}, pericias: {}, salvaguardas: { Força:0, Agilidade:0, Vigor:0, Inteligência:0, Espírito:0 },
+  status: { hp_at:20, hp_mx:20, mp_at:20, mp_mx:20 },
+  inventario: [], habilidades: [], magias: [],
+  elemento: "IGNIS", caminho: "Fogo", origem: "", ca: "10",
+  espaco_max: "10", espaco_atual: "0"
+};
+
+// DOM reference objects (like character.html)
+let ceEntradasBase = {};
+let ceBonusPericias = {};
+let currentTab = 'inventario';
+let dirty = false;
+let autoSaveTimer = null;
+
+function onDirty() {
+  dirty = true;
+  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(enviarSalvar, 2000);
+}
+
+// ── Chat ─────────────────────────────────────────────────────
+function conectarAgWs() {
+  const token = getToken();
+  if (!token) return;
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = proto + '//' + window.location.host + '/ws/campaign/' + campaignId + '?token=' + token;
+  if (agWs) try { agWs.close(); } catch(e) {}
+  agWs = new WebSocket(url);
+  agWs.onopen = function() { console.log('[agWs] connected'); };
+  agWs.onmessage = function(ev) {
+    console.log('[agWs] message:', ev.data);
+    try {
+      const msg = JSON.parse(ev.data);
+      if (msg.tipo === 'chat') {
+        adicionarChatAg(msg.author_name, msg.content, msg.message_type);
+      } else if (msg.tipo === 'roll') {
+        const txt = '🎲 ' + msg.formula + ' = ' + msg.resultado + ' (' + msg.detalhes + ')';
+        adicionarChatAg(msg.author_name, txt, 'roll');
+        adicionarToastAg(msg.author_name, msg.formula, msg.resultado, msg.detalhes);
+      }
+    } catch(e) {}
+  };
+  agWs.onclose = function() {
+    setTimeout(conectarAgWs, 5000);
+  };
+}
+function adicionarChatAg(autor, texto, tipo) {
+  console.log('[adicionarChatAg]', autor, texto, tipo);
+  const box = document.getElementById('agChatBox');
+  if (!box) return;
+  const h = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const authCls = tipo === 'system' ? 'system' : (String(autor).includes('MESTRE') || String(autor).includes('🗿') ? 'mestre' : 'player');
+  const txtCls = tipo === 'roll' ? 'ac-roll' : '';
+  box.innerHTML += `<div class="ag-chat-msg"><span class="ac-time">[${h}]</span><span class="ac-auth ${authCls}">${autor}</span> <span class="${txtCls}">${texto}</span></div>`;
+  box.scrollTop = box.scrollHeight;
+  abrirChat();
+}
+function abrirChat() {
+  const collapse = document.getElementById('chatCollapse');
+  const arrow = document.getElementById('chatArrow');
+  if (!collapse) return;
+  if (!collapse.classList.contains('open')) {
+    collapse.classList.add('open');
+    if (arrow) arrow.textContent = '[▲]';
+  }
+}
+function enviarChatAg() {
+  const input = document.getElementById('agChatInput');
+  if (!input) return;
+  const texto = input.value.trim();
+  if (!texto) return;
+  input.value = '';
+  if (texto.startsWith('/')) {
+    const partes = texto.split(' '), cmd = partes[0].toLowerCase(), arg = partes.slice(1).join(' ');
+    if (cmd === '/roll' && arg) {
+      if (isNpc) {
+        const nname = document.getElementById('ceNome')?.value || 'NPC';
+        if (agWs) agWs.send(JSON.stringify({ tipo: 'npc_roll', formula: arg, npc_name: nname }));
+      } else {
+        if (agWs) agWs.send(JSON.stringify({ tipo: 'roll', formula: arg }));
+      }
+      return;
+    }
+    if (cmd === '/tell' && arg) { if (agWs) agWs.send(JSON.stringify({ tipo: 'chat', conteudo: texto })); return; }
+    if (cmd === '/clear' || cmd === '/limpar') { const b = document.getElementById('agChatBox'); if (b) b.innerHTML = ''; return; }
+  }
+  if (agWs) agWs.send(JSON.stringify({ tipo: 'chat', conteudo: texto }));
+}
+function toggleChat() {
+  const collapse = document.getElementById('chatCollapse');
+  const arrow = document.getElementById('chatArrow');
+  if (!collapse) { console.log('[toggleChat] #chatCollapse not found'); return; }
+  const open = collapse.classList.toggle('open');
+  console.log('[toggleChat] open:', open);
+  if (arrow) arrow.textContent = open ? '[▲]' : '[▼]';
+}
+function adicionarToastAg(author, formula, resultado, detalhes) {
+  const cont = document.getElementById('rollToastCont');
+  if (!cont) return;
+  const el = document.createElement('div');
+  el.className = 'roll-toast';
+  el.innerHTML = `<div class="roll-toast-head"><span class="name">${author}</span><button class="cl" onclick="this.parentElement.parentElement.remove()">✕</button></div><div class="roll-toast-body"><div class="res">${resultado}</div><div class="det">🎲 ${formula} — ${detalhes}</div></div>`;
+  cont.appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 4500);
+}
+
+async function enviarSalvar() {
+  if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
+  coletarDados();
+  try {
+    console.log('[SALVAR] enviando PUT...');
+    const endpoint = isNpc
+      ? '/campaigns/' + campaignId + '/npcs/' + characterId
+      : '/campaigns/' + campaignId + '/characters/' + characterId;
+    const res = await api(endpoint, { method: 'PUT', body: JSON.stringify(dados) });
+    console.log('[SALVAR] PUT resposta:', res);
+    if (res && res.detail) throw new Error(res.detail);
+    dirty = false;
+    const el = document.getElementById('saveStatus');
+    el.textContent = '✅ Salvo';
+    el.style.display = 'inline';
+    setTimeout(() => { if (el) el.style.display = 'none'; }, 2000);
+  } catch (e) {
+    console.error('[SALVAR] Erro:', e);
+    const el = document.getElementById('saveStatus');
+    el.textContent = '❌ Erro ao salvar';
+    el.style.display = 'inline';
+    setTimeout(() => { if (el) el.style.display = 'none'; }, 3000);
+  }
+}
+
+async function deletarNpc() {
+  if (!confirm('Deletar este NPC permanentemente?')) return;
+  await api('/campaigns/' + campaignId + '/npcs/' + characterId, { method: 'DELETE' });
+  window.location.href = '/campanha/' + campaignId;
+}
+
+// Prevent accidental form submission on Enter key
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+    e.preventDefault();
+  }
+});
+
+function coletarDados() {
+  dados.nome = document.getElementById('ceNome').value;
+  dados.nivel = parseInt(document.getElementById('ceNivel').value) || 1;
+  dados.classe = document.getElementById('ceClasse').value;
+  dados.status = {
+    hp_at: document.getElementById('ceHpAt').value,
+    hp_mx: document.getElementById('ceHpMx').value,
+    mp_at: document.getElementById('ceMpAt').value,
+    mp_mx: document.getElementById('ceMpMx').value
+  };
+  dados.ca = document.getElementById('ceCA').value;
+  dados.elemento = document.getElementById('ceElemento').value;
+  dados.caminho = document.getElementById('ceCaminho').value;
+  dados.origem = document.getElementById('ceOrigem').value;
+  dados.espaco_max = document.getElementById('ceEspMx').value;
+
+  // Read attributes from DOM cards
+  ATRIBUTOS.forEach(a => {
+    const entry = ceEntradasBase[a];
+    if (entry) dados.atributos[a] = parseInt(entry.val.textContent) || 8;
+  });
+
+  // Read pericias from DOM inputs
+  Object.keys(ceBonusPericias).forEach(p => {
+    const inp = ceBonusPericias[p];
+    dados.pericias[p] = inp ? inp.value : '0';
+  });
+
+  // Salvaguardas from DOM divs
+  const salvNomes = ["Força","Agilidade","Vigor","Inteligência","Espírito"];
+  salvNomes.forEach(n => {
+    const el = document.getElementById('salvVal' + n);
+    if (el) dados.salvaguardas[n] = parseInt(el.textContent) || 0;
+  });
+
+  // Items, habs, magias are tracked via arrays already
+  dados.icone = dados.nome ? dados.nome[0].toUpperCase() : '?';
+  dados.espaco_atual = String((dados.inventario||[]).reduce((s,i) => s + (parseInt(i.espaco)||1), 0));
+}
+
+
+
+// ── Load ──────────────────────────────────────────────────────
+async function carregar() {
+  try {
+    const user = getUser();
+    if (user) document.getElementById('userName').textContent = user.username;
+
+    const data = await api('/campaigns/' + campaignId);
+    if (!data || data.detail) { window.location.href = '/dashboard'; return; }
+
+    isMaster = data.is_master;
+    campaignName = data.name;
+    document.getElementById('caNomeCampanha').textContent = '🏕️ ' + data.name;
+
+    // Find the target character or NPC
+    let char = null, src = {};
+    if (isNpc) {
+      const npc = (data.npcs || {})[characterId];
+      if (!npc) { window.location.href = '/campanha/' + campaignId; return; }
+      src = npc.data || {};
+      dados.nome = npc.name || src.nome || 'NPC';
+      document.getElementById('btnDeletarNpc').style.display = 'inline-block';
+    } else {
+      char = (data.characters || []).find(c => c.id === characterId);
+      if (!char) { window.location.href = '/campanha/' + campaignId; return; }
+      masterCharId = char.id;
+      // Merge campaign_data into dados; fallback to base char.data if empty
+      const cd = char.campaign_data || {};
+      src = (Object.keys(cd).length > 0) ? cd : (char.data || {});
+      if (char.name && !dados.nome) dados.nome = char.name;
+      if (char.level && !dados.nivel) dados.nivel = char.level;
+      if (char.classe && !dados.classe) dados.classe = char.classe;
+    }
+    document.getElementById('btnVoltar').onclick = () => { window.location.href = '/campanha/' + campaignId; };
+document.getElementById('btnSalvar').addEventListener('click', enviarSalvar);
+document.getElementById('agChatInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') enviarChatAg(); });
+window.addEventListener('beforeunload', function(e) {
+  if (dirty) { e.preventDefault(); e.returnValue = ''; }
+});
+
+    Object.keys(src).forEach(k => { dados[k] = JSON.parse(JSON.stringify(src[k])); });
+    // Column values: only as fallback if campaign_data doesn't have the field
+    if (!dados.atributos || Object.keys(dados.atributos).length === 0) dados.atributos = { "Força":8, "Agilidade":8, "Vigor":8, "Inteligência":8, "Espírito":8 };
+    if (!dados.salvaguardas) dados.salvaguardas = { Força:0, Agilidade:0, Vigor:0, Inteligência:0, Espírito:0 };
+    if (!dados.pericias) dados.pericias = {};
+    if (!dados.status) dados.status = { hp_at:20, hp_mx:20, mp_at:20, mp_mx:20 };
+    if (!dados.inventario) dados.inventario = [];
+    if (!dados.habilidades) dados.habilidades = [];
+    if (!dados.magias) dados.magias = [];
+
+    conectarAgWs();
+    // Load chat history (no auto-open)
+    if (data.messages) {
+      const box = document.getElementById('agChatBox');
+      if (box) {
+        data.messages.forEach(function(m) {
+          const h = new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          const authCls = m.message_type === 'system' ? 'system' : (String(m.author_name).includes('MESTRE') || String(m.author_name).includes('🗿') ? 'mestre' : 'player');
+          const txtCls = m.message_type === 'roll' ? 'ac-roll' : (m.message_type === 'tell' ? 'system' : '');
+          const texto = m.message_type === 'roll' ? '🎲 ' + m.content : m.content;
+          box.innerHTML += '<div class="ag-chat-msg"><span class="ac-time">[' + h + ']</span><span class="ac-auth ' + authCls + '">' + m.author_name + '</span> <span class="' + txtCls + '">' + texto + '</span></div>';
+        });
+        box.scrollTop = box.scrollHeight;
+      }
+    }
+    reRender();
+  } catch (e) {
+    console.error(e);
+    window.location.href = '/campanha/' + campaignId;
+  }
+}
+
+function voltarCampanha() { window.location.href = '/campanha/' + campaignId; }
+
+// ── Render ────────────────────────────────────────────────────
+function reRender() {
+  // Fill form fields
+  document.getElementById('ceNome').value = dados.nome || '';
+  document.getElementById('ceNivel').value = dados.nivel || 1;
+  document.getElementById('ceClasse').value = dados.classe || 'Bruxo';
+
+  const st = dados.status || {};
+  document.getElementById('ceHpAt').value = st.hp_at || 0;
+  document.getElementById('ceHpMx').value = st.hp_mx || 20;
+  document.getElementById('ceMpAt').value = st.mp_at || 0;
+  document.getElementById('ceMpMx').value = st.mp_mx || 20;
+  atualizarBarras();
+
+  document.getElementById('ceCA').value = dados.ca || '10';
+  document.getElementById('ceElemento').value = dados.elemento || 'IGNIS';
+  document.getElementById('ceCaminho').value = dados.caminho || 'Fogo';
+  document.getElementById('ceOrigem').value = dados.origem || '';
+  document.getElementById('ceEspMx').value = dados.espaco_max || '10';
+
+  construirAtributos();
+  construirPericias();
+  renderSalvaguardas();
+  renderTabContent();
+}
+
+function atualizarBarras() {
+  const hpA = parseInt(document.getElementById('ceHpAt').value) || 0;
+  const hpM = parseInt(document.getElementById('ceHpMx').value) || 1;
+  const mpA = parseInt(document.getElementById('ceMpAt').value) || 0;
+  const mpM = parseInt(document.getElementById('ceMpMx').value) || 1;
+  document.getElementById('ceBarHpFill').style.width = Math.min(100, (hpA/hpM)*100) + '%';
+  document.getElementById('ceBarMpFill').style.width = Math.min(100, (mpA/mpM)*100) + '%';
+}
+// Update bars on every input
+document.getElementById('ceHpAt').addEventListener('input', atualizarBarras);
+document.getElementById('ceHpMx').addEventListener('input', atualizarBarras);
+document.getElementById('ceMpAt').addEventListener('input', atualizarBarras);
+document.getElementById('ceMpMx').addEventListener('input', atualizarBarras);
+
+function construirAtributos() {
+  const container = document.getElementById('ceAtributos');
+  container.innerHTML = '';
+  ceEntradasBase = {};
+  ATRIBUTOS.forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'attr-card';
+    const val = dados.atributos?.[a] || 8;
+    const mod = attrBonus(val);
+    div.innerHTML = `
+      <button class="attr-btn minus" onclick="modAttr('${a}',-1)">−</button>
+      <button class="attr-btn plus" onclick="modAttr('${a}',1)">+</button>
+      <div class="icon">${ATTR_ICONES[a]}</div>
+      <div class="lbl">${a}</div>
+      <div class="val">${val}</div>
+      <div class="mod">${mod>=0?'+':''}${mod}</div>
+      <button class="attr-roll" onclick="rolarAtributo('${a}')" title="Rolar ${a}">🎲</button>
+    `;
+    container.appendChild(div);
+    ceEntradasBase[a] = { val: div.querySelector('.val'), mod: div.querySelector('.mod') };
+  });
+}
+
+function modAttr(attr, delta) {
+  const entry = ceEntradasBase[attr];
+  if (!entry) return;
+  const v = Math.max(1, parseInt(entry.val.textContent) + delta);
+  entry.val.textContent = v;
+  entry.mod.textContent = (attrBonus(v) >= 0 ? '+' : '') + attrBonus(v);
+  onDirty();
+}
+
+function construirPericias() {
+  const container = document.getElementById('cePericias');
+  container.innerHTML = '';
+  ceBonusPericias = {};
+  Object.entries(PERICIAS_MAP).forEach(([nome, attr]) => {
+    const div = document.createElement('div');
+    div.className = 'peri-row';
+    const val = dados.pericias?.[nome] || 0;
+    div.innerHTML = `
+      <span class="name" title="${nome}">${nome}</span>
+      <span class="dot-lead"></span>
+      <span class="right-group">
+        <input type="number" value="${val}" class="no-spin" oninput="periChanged('${nome.replace(/'/g,"\\'")}',this.value)">
+        <button class="roll-p" onclick="rolarPericia('${nome.replace(/'/g,"\\'")}')" title="Rolar ${nome}">🎲</button>
+      </span>
+    `;
+    container.appendChild(div);
+    ceBonusPericias[nome] = div.querySelector('input');
+  });
+}
+
+function periChanged(nome, val) {
+  if (dados.pericias) dados.pericias[nome] = val;
+  onDirty();
+}
+
+function renderSalvaguardas() {
+  const container = document.getElementById('ceSalvaguardas');
+  const salv = dados.salvaguardas || {};
+  const salvNomes = ["Força","Agilidade","Vigor","Inteligência","Espírito"];
+  const salvIcones = {"Força":"💪","Agilidade":"⚡","Vigor":"❤️","Inteligência":"🧠","Espírito":"✨"};
+  container.innerHTML = salvNomes.map(n => {
+    const v = parseInt(salv[n] || 0);
+    return `
+      <div class="salv-card">
+        <button class="attr-btn minus" onclick="modSalv('${n}',-1)">−</button>
+        <button class="attr-btn plus" onclick="modSalv('${n}',1)">+</button>
+        <div class="icon">${salvIcones[n]}</div>
+        <div class="lbl">${n}</div>
+        <div class="val" id="salvVal${n}">${v}</div>
+        <div class="mod" id="salvMod${n}">${v>=0?'+':''}${v}</div>
+        <button class="attr-roll" onclick="rolarFormula('1d20${v>=0?'+':''}${v}','${n}')" title="Rolar ${n}">🎲</button>
+      </div>`;
+  }).join('');
+  dirty = true;
+}
+
+function modSalv(nome, delta) {
+  if (!dados.salvaguardas) dados.salvaguardas = {};
+  const cur = parseInt(dados.salvaguardas[nome] || 0);
+  dados.salvaguardas[nome] = Math.max(-10, cur + delta);
+  const el = document.getElementById('salvVal' + nome);
+  if (el) el.textContent = dados.salvaguardas[nome];
+  const el2 = document.getElementById('salvMod' + nome);
+  if (el2) el2.textContent = (dados.salvaguardas[nome] >= 0 ? '+' : '') + dados.salvaguardas[nome];
+  onDirty();
+}
+
+// ── Tabs ──────────────────────────────────────────────────────
+function swTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.inv-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  document.getElementById('espacosBar').classList.toggle('hidden', tab !== 'inventario');
+  const inp = document.getElementById('tabAddInput');
+  inp.value = '';
+  inp.placeholder = tab === 'inventario' ? 'Nome do item...' : tab === 'habilidades' ? 'Nome da habilidade...' : 'Nome da magia...';
+  renderTabContent();
+}
+
+function addItem() {
+  const input = document.getElementById('tabAddInput');
+  const nome = input.value.trim();
+  if (!nome) return;
+  if (currentTab === 'inventario') dados.inventario.push({ nome, atq: '', dano: '', espaco: '1', desc: '' });
+  else if (currentTab === 'habilidades') dados.habilidades.push({ nome, desc: '' });
+  else dados.magias.push({ nome, elemento: 'IGNIS', caminho: 'Fogo', pericia: 'Artes (I/E)', custo: '', dano: '' });
+  input.value = '';
+  renderTabContent();
+  onDirty();
+}
+
+function rmItem(idx) {
+  if (currentTab === 'inventario') dados.inventario.splice(idx, 1);
+  else if (currentTab === 'habilidades') dados.habilidades.splice(idx, 1);
+  else dados.magias.splice(idx, 1);
+  renderTabContent();
+  onDirty();
+}
+
+function updateItem(idx, field, value) {
+  const arr = currentTab === 'inventario' ? dados.inventario : currentTab === 'habilidades' ? dados.habilidades : dados.magias;
+  if (!arr[idx]) return;
+  arr[idx][field] = value;
+  if (currentTab === 'inventario' && field === 'espaco') calcEspacos();
+  onDirty();
+}
+
+function calcEspacos() {
+  const total = dados.inventario.reduce((s, i) => s + (parseInt(i.espaco) || 1), 0);
+  document.getElementById('ceEspAt').value = total;
+  dados.espaco_atual = String(total);
+}
+
+function renderTabContent() {
+  const container = document.getElementById('tabContent');
+  const arr = currentTab === 'inventario' ? dados.inventario : currentTab === 'habilidades' ? dados.habilidades : dados.magias;
+  if (arr.length === 0) {
+    container.innerHTML = '<div class="text-dim" style="padding:24px 16px;text-align:center;font-size:13px;">Nada aqui. Use o campo acima para adicionar.</div>';
+    return;
+  }
+  container.innerHTML = '<div class="acc-group"></div>';
+  const group = container.querySelector('.acc-group');
+  arr.forEach((item, idx) => {
+    if (currentTab === 'inventario') group.appendChild(renderItem(item, idx));
+    else if (currentTab === 'habilidades') group.appendChild(renderHab(item, idx));
+    else group.appendChild(renderMagia(item, idx));
+  });
+  calcEspacos();
+}
+
+function toggleAcc(header) {
+  header.nextElementSibling.classList.toggle('open');
+  header.querySelector('.arrow').classList.toggle('open');
+}
+
+function renderItem(item, idx) {
+  const div = document.createElement('div');
+  div.className = 'acc-item';
+  div.innerHTML = `
+    <div class="acc-header" onclick="toggleAcc(this)">
+      <span class="arrow">▶</span>
+      <span class="acc-name">${(item.nome||'(sem nome)').replace(/"/g,'&quot;')}</span>
+      <span class="acc-tag">🗂️ ${item.espaco||'1'}</span>
+      <span class="acc-actions"><button class="btn btn-red btn-sm" onclick="event.stopPropagation();rmItem(${idx})">✕</button></span>
+    </div>
+    <div class="acc-body">
+      <div class="edit-row">
+        <input type="text" value="${(item.nome||'').replace(/"/g,'&quot;')}" placeholder="Nome" oninput="updateItem(${idx},'nome',this.value)">
+        <div style="display:flex;align-items:center;gap:2px;flex:1;">
+          <input type="text" value="${item.atq||''}" placeholder="Ataque (ex: 1d20+5)" oninput="updateItem(${idx},'atq',this.value)" style="flex:1;">
+          <button class="roll-sm" onclick="rolarFormula(this.previousElementSibling.value,'${(item.nome||'Item').replace(/'/g,"\\'")} Ataque')" title="Rolar Ataque">🎲</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:2px;flex:1;">
+          <input type="text" value="${item.dano||''}" placeholder="Dano (ex: 2d6+3)" oninput="updateItem(${idx},'dano',this.value)" style="flex:1;">
+          <button class="roll-sm" onclick="rolarFormula(this.previousElementSibling.value,'${(item.nome||'Item').replace(/'/g,"\\'")} Dano')" title="Rolar Dano">🎲</button>
+        </div>
+        <input type="number" value="${item.espaco||'1'}" placeholder="Espaço" class="no-spin" oninput="updateItem(${idx},'espaco',this.value);calcEspacos()" style="width:50px;">
+      </div>
+      <textarea placeholder="Descrição..." oninput="updateItem(${idx},'desc',this.value)">${(item.desc||'').replace(/"/g,'&quot;')}</textarea>
+    </div>
+  `;
+  return div;
+}
+
+function renderHab(item, idx) {
+  const div = document.createElement('div');
+  div.className = 'acc-item';
+  div.innerHTML = `
+    <div class="acc-header" onclick="toggleAcc(this)">
+      <span class="arrow">▶</span>
+      <span class="acc-name">${(item.nome||'(sem nome)').replace(/"/g,'&quot;')}</span>
+      <span class="acc-actions"><button class="btn btn-red btn-sm" onclick="event.stopPropagation();rmItem(${idx})">✕</button></span>
+    </div>
+    <div class="acc-body">
+      <input type="text" value="${(item.nome||'').replace(/"/g,'&quot;')}" placeholder="Nome da habilidade" oninput="updateItem(${idx},'nome',this.value)" style="margin-bottom:4px;">
+      <textarea placeholder="Descrição da habilidade..." oninput="updateItem(${idx},'desc',this.value)">${(item.desc||'').replace(/"/g,'&quot;')}</textarea>
+    </div>
+  `;
+  return div;
+}
+
+function renderMagia(item, idx) {
+  const caminhos = ["Fogo","Luz","Eletricidade","Gelo","Água","Vapor","Clima","Vento","Areia","Metal","Pedra","Cristal","Planta","Animal","Regeneração","Arte","Música","Esporte","Teatro","Misto"];
+  const periOpts = Object.keys(PERICIAS_MAP).map(k => `<option ${k===item.pericia?'selected':''}>${k}</option>`).join('');
+  const caminhoOpts = caminhos.map(c => `<option ${c===item.caminho?'selected':''}>${c}</option>`).join('');
+  const elemOpts = ["IGNIS","AQUA","VENTUS","TERRA","NATURA","ANIMA"].map(e => `<option ${e===item.elemento?'selected':''}>${e}</option>`).join('');
+  const div = document.createElement('div');
+  div.className = 'acc-item';
+  div.style.borderColor = 'var(--purple)';
+  div.innerHTML = `
+    <div class="acc-header" onclick="toggleAcc(this)">
+      <span class="arrow">▶</span>
+      <span class="acc-name" style="color:var(--purple)">${(item.nome||'(sem nome)').replace(/"/g,'&quot;')}</span>
+      <span class="acc-tag">💧${item.custo||'?'}</span>
+      <span class="acc-tag">⚔️${item.dano||'?'}</span>
+      <span class="acc-actions"><button class="btn btn-red btn-sm" onclick="event.stopPropagation();rmItem(${idx})">✕</button></span>
+    </div>
+    <div class="acc-body">
+      <div class="edit-row">
+        <input type="text" value="${(item.nome||'').replace(/"/g,'&quot;')}" placeholder="Nome" oninput="updateItem(${idx},'nome',this.value)">
+        <input type="text" value="${item.custo||''}" placeholder="Custo (Mana)" oninput="updateItem(${idx},'custo',this.value)">
+        <div style="display:flex;align-items:center;gap:2px;flex:1;">
+          <input type="text" value="${item.dano||''}" placeholder="Dano (ex: 2d6+3)" oninput="updateItem(${idx},'dano',this.value)" style="flex:1;">
+          <button class="roll-sm" onclick="rolarFormula(this.previousElementSibling.value,'${(item.nome||'Magia').replace(/'/g,"\\'")} Dano')" title="Rolar Dano">🎲</button>
+        </div>
+      </div>
+      <div class="edit-row">
+        <select onchange="updateItem(${idx},'elemento',this.value)">${elemOpts}</select>
+        <select onchange="updateItem(${idx},'caminho',this.value)">${caminhoOpts}</select>
+        <select onchange="updateItem(${idx},'pericia',this.value)">${periOpts}</select>
+      </div>
+    </div>
+  `;
+  return div;
+}
+
+// ── Roll Toast ────────────────────────────────────────────────
+function rolarPericia(nome) {
+  const attr = PERICIAS_MAP[nome];
+  const entry = ceEntradasBase[attr];
+  const attrVal = entry ? parseInt(entry.val.textContent) : 8;
+  const mod = attrBonus(attrVal);
+  const bonus = parseInt(ceBonusPericias[nome]?.value || 0);
+  const formula = '1d20' + (mod >= 0 ? '+' : '') + mod + (bonus >= 0 ? '+' : '') + bonus;
+  rolarFormula(formula, nome);
+}
+
+function rolarAtributo(attr) {
+  const entry = ceEntradasBase[attr];
+  if (!entry) return;
+  const v = parseInt(entry.val.textContent) || 8;
+  const mod = attrBonus(v);
+  rolarFormula('1d20' + (mod >= 0 ? '+' : '') + mod, attr);
+}
+
+function rolarFormula(formula, nome) {
+  if (agWs && agWs.readyState === WebSocket.OPEN) {
+    if (isNpc) {
+      const nname = document.getElementById('ceNome')?.value || 'NPC';
+      agWs.send(JSON.stringify({ tipo: 'npc_roll', formula: formula, npc_name: nname }));
+    } else {
+      agWs.send(JSON.stringify({ tipo: 'roll', formula: formula }));
+    }
+  } else {
+    // Fallback: roll locally if WS not available
+    const f = (formula || '').toLowerCase().replace(/\s/g, '');
+    if (!f) { return; }
+    const partes = f.match(/[+-]?\d*d\d+|[+-]?\d+/g);
+    if (!partes) return;
+    let total = 0, det = [];
+    for (const p of partes) {
+      if (p.includes('d')) {
+        const m = p.match(/^([+-]?)(\d*)d(\d+)$/);
+        if (!m) continue;
+        const s = m[1] === '-' ? -1 : 1;
+        const q = parseInt(m[2] || '1');
+        const faces = parseInt(m[3]);
+        const rolls = Array.from({ length: q }, () => Math.floor(Math.random() * faces) + 1);
+        total += rolls.reduce((a,b)=>a+b,0) * s;
+        det.push((s === -1 ? '-' : '') + '[' + rolls.join('+') + ']');
+      } else {
+        total += parseInt(p);
+        det.push(p);
+      }
+    }
+    showToast(nome, total, `${formula} = ${det.join(' + ')}`);
+  }
+}
+
+function showToast(nome, total, detail) {
+  const container = document.getElementById('rollToastCont');
+  const el = document.createElement('div');
+  el.className = 'roll-toast';
+  el.innerHTML = `
+    <div class="roll-toast-head">
+      <span class="name">🎲 ${nome}</span>
+      <button class="cl" onclick="this.closest('.roll-toast').classList.add('out');setTimeout(()=>this.closest('.roll-toast').remove(),300)">✕</button>
+    </div>
+    <div class="roll-toast-body">
+      <span class="res">${total}</span>
+      <span class="det">${detail}</span>
+    </div>`;
+  container.appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 4500);
+}
+
+// ── Comandos ──────────────────────────────────────────────────
+function mostrarComandos() {
+  const modal = document.getElementById('cmdModalAg');
+  if (modal) modal.classList.toggle('open');
+}
+function fecharComandos() {
+  const modal = document.getElementById('cmdModalAg');
+  if (modal) modal.classList.remove('open');
+}
+
+// ── Init ──────────────────────────────────────────────────────
+carregar();
+</script>
+
+<div class="cmd-modal" id="cmdModalAg" onclick="if(event.target===this)fecharComandos()">
+  <div class="cmd-modal-box">
+    <h3>Comandos do Chat</h3>
+    <div class="cmd-row"><code>/roll 1d20+5</code><div class="cmd-desc">Rola dados e mostra o resultado no chat</div></div>
+    <div class="cmd-row"><code>/tell Mestre sua mensagem</code><div class="cmd-desc">Envia mensagem privada só para o Mestre</div></div>
+    <div class="cmd-row"><code>/clear</code> ou <code>/limpar</code><div class="cmd-desc">Limpa o chat localmente (só pra você)</div></div>
+    <div class="cmd-row"><code>/ajuda</code><div class="cmd-desc">Mostra esta lista de comandos</div></div>
+    <div style="margin-top:14px;text-align:right;"><button class="btn btn-gold btn-sm" onclick="fecharComandos()">Fechar</button></div>
+  </div>
+</div>
+
+</body>
+</html>

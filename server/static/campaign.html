@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Campanha - Garvedrene System</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="/static/js/auth.js"></script>
+  <style>
+    :root { --sidebar-w: 270px; --chat-w: 340px; }
+    .campaign-layout { display: flex; height: calc(100vh - 50px); overflow: hidden; }
+    .col-left { width: var(--sidebar-w); flex-shrink: 0; overflow-y: auto; padding: 12px; background: var(--bg-secondary); border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+    .col-center { flex: 1; overflow-y: auto; padding: 12px; min-width: 0; }
+    .col-right { width: var(--chat-w); flex-shrink: 0; display: flex; flex-direction: column; border-left: 1px solid var(--border); background: var(--bg-secondary); }
+
+    /* Character header */
+    .char-portrait { width: 60px; height: 60px; border-radius: 50%; background: var(--gold); color: #000; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 900; margin: 0 auto 4px; }
+    .char-name-display { text-align: center; font-weight: 700; font-size: 16px; }
+    .char-class-display { text-align: center; font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+
+    /* HP/MP bars with centered values */
+    .stat-bar-wrap { position: relative; height: 32px; border-radius: 6px; overflow: hidden; border: 1px solid #333; margin-bottom: 6px; }
+    .stat-bar-bg { position: absolute; inset: 0; }
+    .stat-bar-fill { height: 100%; transition: width 0.4s ease; }
+    .stat-bar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); z-index: 1; }
+    .bar-hp .stat-bar-fill { background: var(--hp-color); }
+    .bar-mp .stat-bar-fill { background: var(--mp-color); }
+    .bar-hp { border-color: var(--hp-color); }
+    .bar-mp { border-color: var(--mp-color); }
+
+    /* Status chips */
+    .status-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .chip { background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; font-size: 11px; display: flex; align-items: center; gap: 4px; }
+    .chip .val { font-weight: 700; color: var(--gold); }
+
+    /* Attribute hexagon */
+    .attr-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
+    .attr-hex { text-align: center; padding: 12px 4px 8px; background: var(--bg-card); border: 2px solid var(--gold); border-radius: 12px; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
+    .attr-hex .icon { font-size: 20px; }
+    .attr-hex .label { font-size: 10px; color: var(--gold); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .attr-hex .value { font-size: 26px; font-weight: 900; line-height: 1.1; }
+    .attr-hex .mod { font-size: 11px; color: var(--text-dim); }
+
+    /* Pericias */
+    .pericias-title { font-size: 13px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .pericia-row { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 6px; cursor: pointer; transition: background 0.15s; }
+    .pericia-row:hover { background: rgba(212, 163, 115, 0.1); }
+    .pericia-row .name { flex: 1; font-size: 11px; }
+    .pericia-row .bonus { font-size: 12px; font-weight: 700; color: var(--green-light); width: 28px; text-align: right; }
+    .pericia-row .roll-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; }
+    .pericia-row .roll-btn:hover { background: var(--gold); color: #000; border-color: var(--gold); }
+
+    /* Chat */
+    .chat-container { display: flex; flex-direction: column; height: 100%; }
+    .chat-header { padding: 10px 14px; font-weight: 700; font-size: 13px; color: var(--gold); border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.5px; }
+    .chat-box { flex: 1; overflow-y: auto; padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 12px; }
+    .chat-input-bar { padding: 8px 10px; border-top: 1px solid var(--border); display: flex; gap: 6px; align-items: center; }
+    .chat-input-bar input { flex: 1; font-size: 12px; }
+    .btn-help { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; transition: all 0.15s; line-height: 1; }
+    .btn-help:hover { border-color: var(--gold); color: var(--gold); background: rgba(255,255,255,0.05); }
+    .cmd-modal { display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
+    .cmd-modal.open { display: flex; }
+    .cmd-modal-box { background: var(--bg-card); border: 1px solid var(--gold); border-radius: var(--radius-lg); padding: 24px; max-width: 420px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .cmd-modal-box h3 { margin: 0 0 16px; font-size: 14px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; }
+    .cmd-row { padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .cmd-row:last-child { border-bottom: none; }
+    .cmd-row code { color: var(--green-light); font-size: 12px; }
+    .cmd-row .cmd-desc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .chat-msg { margin-bottom: 4px; line-height: 1.5; word-wrap: break-word; }
+    .chat-time { color: var(--text-dim); font-size: 10px; }
+    .chat-author { font-weight: 700; }
+    .chat-mestre { color: var(--red); }
+    .chat-player { color: var(--gold); }
+    .chat-system { color: #4a9eff; }
+    .chat-roll { color: var(--green-light); }
+    .quick-rolls { display: flex; gap: 3px; padding: 6px 10px; flex-wrap: wrap; border-top: 1px solid var(--border); }
+    .quick-rolls .btn { font-size: 10px; padding: 2px 6px; }
+
+    /* Participant list */
+    .participant-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; font-size: 12px; }
+    .participant-item .dot { width: 7px; height: 7px; border-radius: 50%; background: #4caf50; flex-shrink: 0; }
+    .participant-item .dot.offline { background: #555; }
+
+    /* Master controls */
+    .master-controls { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); }
+    .master-controls .mc-row { display: flex; gap: 4px; align-items: center; margin-bottom: 4px; font-size: 11px; }
+
+    /* Compact tabs for inventory/habilidades/magias */
+    .sheet-tabs { display: flex; gap: 2px; background: #111; border-radius: 6px; padding: 2px; }
+    .sheet-tab { flex: 1; text-align: center; padding: 4px 2px; border: none; background: transparent; color: var(--text-dim); cursor: pointer; border-radius: 4px; font-size: 10px; transition: all 0.15s; }
+    .sheet-tab:hover { color: var(--text); }
+    .sheet-tab.active { background: var(--gold); color: #000; font-weight: 600; }
+    .sheet-tab-content { display: none; font-size: 11px; max-height: 180px; overflow-y: auto; margin-top: 6px; }
+    .sheet-tab-content.active { display: block; }
+    .sheet-item { padding: 3px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+
+    /* Master selector for characters */
+    .char-selector { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+    .char-selector .cs-btn { font-size: 11px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text-dim); cursor: pointer; }
+    .char-selector .cs-btn:hover { border-color: var(--gold); color: var(--text); }
+    .char-selector .cs-btn.active { background: var(--gold); color: #000; border-color: var(--gold); }
+
+    /* NPC tab bar */
+    .npc-tab-bar { display:flex; gap:4px; margin-bottom:8px; }
+    .npc-tab-bar .btn { font-size:11px; }
+
+    /* ── Agent Mini-Card Grid (Master View) ─────────────────── */
+    .agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; padding: 8px 0; }
+    .agent-card { background: var(--bg-card); border: 2px solid var(--border); border-radius: 12px; padding: 14px; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; gap: 6px; position: relative; }
+    .agent-card:hover { border-color: var(--gold); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+    .agent-card.low-hp { border-color: var(--red); }
+    .agent-card.low-hp:hover { border-color: #ff6b6b; }
+    .agent-avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--gold); color: #000; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; flex-shrink: 0; }
+    .agent-info { display: flex; align-items: center; gap: 10px; }
+    .agent-info-text { flex: 1; min-width: 0; }
+    .agent-info-text .name { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .agent-info-text .sub { font-size: 11px; color: var(--text-dim); }
+    .agent-edit-btn { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border); background: rgba(0,0,0,0.4); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; padding: 0; }
+    .agent-edit-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(0,0,0,0.6); }
+
+    /* Agent mini bars */
+    .agent-bar { position: relative; height: 24px; border-radius: 5px; overflow: hidden; border: 1px solid #333; flex-shrink: 0; }
+    .agent-bar-fill { height: 100%; transition: width 0.4s ease; }
+    .agent-bar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; text-shadow: 0 1px 3px rgba(0,0,0,0.9); gap: 4px; }
+    .agent-bar.a-hp .agent-bar-fill { background: linear-gradient(90deg, #c0392b, #e74c3c); } .agent-bar.a-hp { border-color: #c0392b; }
+    .agent-bar.a-mp .agent-bar-fill { background: linear-gradient(90deg, #1a5276, #2980b9); } .agent-bar.a-mp { border-color: #1a5276; }
+
+    /* Scrollbar for columns */
+    .col-left::-webkit-scrollbar, .col-center::-webkit-scrollbar, .chat-box::-webkit-scrollbar { width: 4px; }
+    .col-left::-webkit-scrollbar-thumb, .col-center::-webkit-scrollbar-thumb, .chat-box::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+
+    @media (max-width: 900px) {
+      :root { --sidebar-w: 220px; --chat-w: 280px; }
+      .attr-hex .value { font-size: 20px; }
+      .attr-hex { padding: 8px 2px 6px; }
+    }
+    @media (max-width: 700px) {
+      .campaign-layout { flex-direction: column; height: auto; }
+      .col-left, .col-center, .col-right { width: 100%; height: auto; max-height: 50vh; border: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="navbar">
+  <div class="navbar-brand">⚔️ <span id="campaignName">Carregando...</span></div>
+  <div class="navbar-info">
+    <span class="online-count" id="onlineCount">◉ 0 online</span>
+    <span id="roleBadge"></span>
+    <button class="btn btn-ghost btn-sm" onclick="window.location.href='/dashboard'">← Dashboard</button>
+  </div>
+</div>
+
+<div class="campaign-layout">
+  <div class="col-left" id="colLeft">
+    <div class="text-dim" style="padding:20px;text-align:center;" id="leftLoading">Carregando...</div>
+  </div>
+  <div class="col-center" id="colCenter">
+    <div class="text-dim" style="padding:20px;text-align:center;" id="centerLoading">Carregando...</div>
+  </div>
+  <div class="col-right">
+    <div class="chat-container">
+      <div class="chat-header">💬 Chat da Sessão</div>
+      <div class="chat-box" id="chatBox"></div>
+      <div class="chat-input-bar">
+        <input type="text" id="chatInput" placeholder="Mensagem ou /roll 1d20+3">
+        <button class="btn btn-gold" onclick="enviarChat()">Enviar</button>
+        <button class="btn-help" onclick="mostrarComandos()" title="Comandos">?</button>
+      </div>
+      <div class="quick-rolls">
+        <button class="btn btn-ghost btn-sm" onclick="quickRoll('1d20')">1d20</button>
+        <button class="btn btn-ghost btn-sm" onclick="quickRoll('1d20+2')">+2</button>
+        <button class="btn btn-ghost btn-sm" onclick="quickRoll('1d20+5')">+5</button>
+        <button class="btn btn-ghost btn-sm" onclick="quickRoll('1d8')">1d8</button>
+        <button class="btn btn-ghost btn-sm" onclick="quickRoll('2d6')">2d6</button>
+        <button class="btn btn-ghost btn-sm" onclick="quickRoll('1d6')">1d6</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="hp-modal-overlay" id="hpModal">
+  <div class="hp-modal-box">
+    <div class="hpm-title" id="hpModalTitle">Editar HP/MP</div>
+    <div class="hpm-row"><label>❤️ HP</label><button onclick="hpModDelta('hp',-10)">−10</button><button onclick="hpModDelta('hp',-5)">−5</button><button onclick="hpModDelta('hp',-1)">−1</button><input type="number" id="hpModalHp" class="no-spin"><button onclick="hpModDelta('hp',1)">+1</button><button onclick="hpModDelta('hp',5)">+5</button><button onclick="hpModDelta('hp',10)">+10</button></div>
+    <div class="hpm-row"><label>💧 MP</label><button onclick="hpModDelta('mp',-10)">−10</button><button onclick="hpModDelta('mp',-5)">−5</button><button onclick="hpModDelta('mp',-1)">−1</button><input type="number" id="hpModalMp" class="no-spin"><button onclick="hpModDelta('mp',1)">+1</button><button onclick="hpModDelta('mp',5)">+5</button><button onclick="hpModDelta('mp',10)">+10</button></div>
+    <div class="hpm-actions">
+      <button class="btn btn-ghost btn-sm" onclick="fecharHpModal()">Cancelar</button>
+      <button class="btn btn-gold btn-sm" onclick="salvarHpModal()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .no-spin::-webkit-inner-spin-button, .no-spin::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .no-spin { -moz-appearance: textfield; appearance: textfield; }
+</style>
+
+<script>
+if (!isLoggedIn()) {
+  localStorage.setItem('redirect_after_login', window.location.href);
+  window.location.href = '/';
+}
+
+const campaignId = window.location.pathname.split('/').pop();
+let ws = null, isMaster = false, meuCharacterId = null, masterSelectedChar = null, participants = {}, characters = {}, npcs = {}, npcTab = 'players', reconectInterval = null, heartbeatInterval = null;
+
+const ATRIBUTOS = ["Força", "Agilidade", "Vigor", "Inteligência", "Espírito"];
+const ATTR_ICONES = {"Força":"💪","Agilidade":"⚡","Vigor":"❤️","Inteligência":"🧠","Espírito":"✨"};
+const PERICIAS_MAP = {
+  "Adestramento (E)":"Espírito","Artes (I/E)":"Inteligência","Atletismo (F/A)":"Força",
+  "Ciências (I)":"Inteligência","Crime (I)":"Inteligência","Culinária (I)":"Inteligência",
+  "Diplomacia (E)":"Espírito","Enganação (E)":"Espírito","Fortitude (V)":"Vigor",
+  "Furtividade (A)":"Agilidade","História (I)":"Inteligência","Iniciativa (A)":"Agilidade",
+  "Intimidação (E)":"Espírito","Intuição (E)":"Espírito","Investigação (I)":"Inteligência",
+  "Luta (F)":"Força","Medicina (I)":"Inteligência","Natureza (I)":"Inteligência",
+  "Percepção (E)":"Espírito","Pilotagem (I)":"Inteligência","Pontaria (A)":"Agilidade",
+  "Profissão (I)":"Inteligência","Reflexos (A)":"Agilidade","Sobrevivência (I)":"Inteligência",
+  "Sorte (E)":"Espírito","Tecnologia (I)":"Inteligência"
+};
+
+function attrBonus(val) { return Math.floor((parseInt(val||8) - 10) / 2); }
+
+// ── WebSocket ────────────────────────────────────────────────
+function conectarWs() {
+  if (ws) try { ws.close(); } catch(e) {}
+  const token = getToken();
+  if (!token || !campaignId) return;
+  ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/campaign/${campaignId}?token=${token}`);
+  ws.onopen = () => {
+    if (reconectInterval) { clearInterval(reconectInterval); reconectInterval = null; }
+    startHeartbeat();
+  };
+  ws.onmessage = (e) => { try { processarMensagem(JSON.parse(e.data)); } catch(err) {} };
+  ws.onclose = (ev) => {
+    stopHeartbeat();
+    // Close codes 4001-4004 = server rejection; do NOT retry
+    if (ev.code && ev.code >= 4001 && ev.code <= 4004) {
+      console.warn('WS rejected by server (code ' + ev.code + '). Not retrying.');
+      return;
+    }
+    if (!reconectInterval) reconectInterval = setInterval(() => { if (!ws || ws.readyState > 1) conectarWs(); }, 3000);
+  };
+  ws.onerror = () => {};
+}
+
+function startHeartbeat() { stopHeartbeat(); heartbeatInterval = setInterval(() => { if (ws && ws.readyState === WebSocket.OPEN) try { ws.send('__ping__'); } catch(e) {} }, 25000); }
+function stopHeartbeat() { if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; } }
+function enviarWs(msg) { if (ws && ws.readyState === WebSocket.OPEN) try { ws.send(JSON.stringify(msg)); } catch(e) { conectarWs(); } }
+
+// ── Message Processing ───────────────────────────────────────
+function processarMensagem(msg) {
+  switch (msg.tipo) {
+    case 'chat': adicionarChat(msg.author_name, msg.content, 'chat'); break;
+    case 'tell': adicionarChat(msg.author_name, `💬 ${msg.content}`, 'system'); break;
+    case 'roll': adicionarChat(msg.author_name, `🎲 ${msg.formula} = ${msg.resultado} (${msg.detalhes})`, 'roll'); break;
+    case 'system': adicionarChat('SISTEMA', msg.content, 'system'); break;
+    case 'participants': atualizarParticipantes(msg.participants); break;
+    case 'ficha_atualizada':
+      if (characters[msg.character_id]) {
+        // campaign_data takes priority over base data
+        const cd = msg.campaign_data;
+        if (cd && Object.keys(cd).length > 0) {
+          characters[msg.character_id].data = cd;
+        } else {
+          characters[msg.character_id].data = msg.data;
+        }
+        characters[msg.character_id].name = msg.name;
+        renderFicha();
+      }
+      break;
+    case 'ficha_mestre_alterou':
+      setTimeout(() => carregarCampanha(), 300);
+      break;
+    case 'ping': enviarWs({ tipo: 'pong' }); break;
+  }
+}
+
+// ── Chat ─────────────────────────────────────────────────────
+function adicionarChat(autor, texto, tipo) {
+  const box = document.getElementById('chatBox');
+  const h = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const cls = tipo === 'system' ? 'chat-system' : tipo === 'roll' ? 'chat-roll' : 'chat-mestre';
+  const autorCls = autor === 'SISTEMA' ? '' : (tipo === 'roll' ? 'chat-player' : (String(autor).includes('MESTRE') ? 'chat-mestre' : 'chat-player'));
+  box.innerHTML += `<div class="chat-msg"><span class="chat-time">[${h}]</span> <span class="chat-author ${autorCls}">${autor}</span> <span class="${cls}">${texto}</span></div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+function enviarChat() {
+  const input = document.getElementById('chatInput');
+  const texto = input.value.trim();
+  if (!texto) return;
+  input.value = '';
+  if (texto.startsWith('/')) {
+    const partes = texto.split(' '), cmd = partes[0].toLowerCase(), arg = partes.slice(1).join(' ');
+    if (cmd === '/roll' && arg) return enviarRolagemCustom(arg);
+    if (cmd === '/clear' || cmd === '/limpar') { document.getElementById('chatBox').innerHTML = ''; return; }
+    if (cmd === '/tell' && arg) return enviarWs({ tipo: 'chat', conteudo: texto });
+    if (cmd === '/ajuda') return adicionarChat('SISTEMA', 'Comandos: /roll [dados], /clear, /tell Mestre [msg], /ajuda, ou clique nas perícias', 'system');
+    return;
+  }
+  enviarWs({ tipo: 'chat', conteudo: texto });
+}
+document.getElementById('chatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') enviarChat(); });
+
+// ── Dice ─────────────────────────────────────────────────────
+function rolarLocal(formula) {
+  try {
+    const f = formula.toLowerCase().replace(/ /g, '');
+    const partes = f.match(/([+-]?\d*d\d+|[+-]?\d+)/g) || [];
+    let total = 0, detalhes = [];
+    for (const p of partes) {
+      if (p.includes('d')) {
+        const m = p.match(/([+-]?)(\d*)d(\d+)/);
+        if (!m) continue;
+        const sinal = m[1] === '-' ? -1 : 1, qtd = parseInt(m[2]) || 1, faces = parseInt(m[3]);
+        const rolls = [];
+        for (let i = 0; i < qtd; i++) rolls.push(Math.floor(Math.random() * faces) + 1);
+        total += rolls.reduce((a, b) => a + b, 0) * sinal;
+        detalhes.push('[' + rolls.join('+') + ']');
+      } else { total += parseInt(p); detalhes.push(p); }
+    }
+    return { total, detalhes: detalhes.join(' + ') };
+  } catch (e) { return { total: 0, detalhes: 'Erro' }; }
+}
+
+function enviarRolagemCustom(formula) {
+  const res = rolarLocal(formula);
+  adicionarChat('🎲 Você', `${formula} = ${res.total} (${res.detalhes})`, 'roll');
+  enviarWs({ tipo: 'roll', formula });
+}
+
+function quickRoll(formula) { enviarRolagemCustom(formula); }
+
+function rolarPericia(periciaNome) {
+  const char = characters[meuCharacterId];
+  if (!char) return;
+  const d = char.data || {};
+  const attrKey = PERICIAS_MAP[periciaNome];
+  if (!attrKey) return;
+  const attrVal = parseInt(d.atributos?.[attrKey] || 8);
+  const mod = attrBonus(attrVal);
+  const perBonus = parseInt(d.pericias?.[periciaNome] || 0);
+  const totalBonus = mod + perBonus;
+  const formula = `1d20${totalBonus >= 0 ? '+' : ''}${totalBonus}`;
+  const res = rolarLocal(formula);
+  const label = `${periciaNome} (${attrKey}${mod >= 0 ? '+' : ''}${mod} + Perícia ${perBonus >= 0 ? '+' : ''}${perBonus})`;
+  adicionarChat('🎲 Você', `${label}: ${formula} = ${res.total} (${res.detalhes})`, 'roll');
+  enviarWs({ tipo: 'roll', formula, label });
+}
+
+// ── Participants ─────────────────────────────────────────────
+function atualizarParticipantes(lista) {
+  participants = {};
+  const container = document.getElementById('colLeft');
+  document.getElementById('onlineCount').textContent = `◉ ${lista.length} online`;
+  lista.forEach(p => { participants[p.user_id] = p; });
+  if (isMaster) renderFicha();
+}
+
+// ── Character Sheet Render ───────────────────────────────────
+let selectedCharId = null;
+let sheetTab = 'inventario';
+
+function renderFicha() {
+  const user = getUser();
+  const left = document.getElementById('colLeft');
+  const center = document.getElementById('colCenter');
+
+  if (isMaster) {
+    renderMasterView(left, center);
+    return;
+  }
+
+  const char = characters[meuCharacterId];
+  if (!char) {
+    if (!meuCharacterId) {
+      left.innerHTML = `<div class="text-dim" style="padding:20px;text-align:center;">🎭 Nenhum personagem vinculado.<br><button class="btn btn-gold btn-sm" onclick="window.location.href='/dashboard'" style="margin-top:8px;">Ir para Dashboard</button></div>`;
+      center.innerHTML = '';
+    } else {
+      left.innerHTML = '<div class="text-dim" style="padding:20px;text-align:center;">Aguardando dados do personagem...</div>';
+    }
+    return;
+  }
+
+  const d = char.data || {};
+  const st = d.status || {};
+  const attrData = d.atributos || {};
+  const pericias = d.pericias || {};
+  const hpPct = Math.max(0, Math.min(100, (parseFloat(st.hp_at||0) / Math.max(1, parseFloat(st.hp_mx||1))) * 100));
+  const mpPct = Math.max(0, Math.min(100, (parseFloat(st.mp_at||0) / Math.max(1, parseFloat(st.mp_mx||1))) * 100));
+
+  // ── LEFT COLUMN ──
+  left.innerHTML = `
+    <div class="char-portrait">${d.icone || (char.name&&char.name[0])||'?'}</div>
+    <div class="char-name-display">${char.name||'?'}</div>
+    <div class="char-class-display">Nv ${char.level||'?'} · ${char.classe||'?'}</div>
+
+    <div class="stat-bar-wrap bar-hp">
+      <div class="stat-bar-bg"><div class="stat-bar-fill" style="width:${hpPct}%"></div></div>
+      <div class="stat-bar-text">❤️ ${st.hp_at||0} / ${st.hp_mx||0}</div>
+    </div>
+    <div class="stat-bar-wrap bar-mp">
+      <div class="stat-bar-bg"><div class="stat-bar-fill" style="width:${mpPct}%"></div></div>
+      <div class="stat-bar-text">💧 ${st.mp_at||0} / ${st.mp_mx||0}</div>
+    </div>
+
+    <div class="status-chips">
+      <span class="chip">🛡️ CA <span class="val">${d.ca||'10'}</span></span>
+      <span class="chip">✨ ${d.elemento||'?'}</span>
+      <span class="chip">🌀 ${d.caminho||'?'}</span>
+    </div>
+    ${d.origem ? `<div class="chip" style="width:100%;justify-content:center;">📜 ${d.origem}</div>` : ''}
+
+    <div class="sheet-tabs" style="margin-top:6px;">
+      <button class="sheet-tab ${sheetTab==='inventario'?'active':''}" onclick="switchSheetTab('inventario')">⚔️ Itens</button>
+      <button class="sheet-tab ${sheetTab==='habilidades'?'active':''}" onclick="switchSheetTab('habilidades')">✨ Habilidades</button>
+      <button class="sheet-tab ${sheetTab==='magias'?'active':''}" onclick="switchSheetTab('magias')">🔮 Magias</button>
+    </div>
+    <div id="sheetTabContent" class="sheet-tab-content active"></div>
+  `;
+  renderSheetTabContent();
+
+  // ── CENTER COLUMN ──
+  let attrHtml = '<div class="attr-grid">';
+  ATRIBUTOS.forEach(a => {
+    const val = parseInt(attrData[a] || 8);
+    const mod = attrBonus(val);
+    attrHtml += `<div class="attr-hex"><div class="icon">${ATTR_ICONES[a]}</div><div class="value">${val}</div><div class="mod">${mod >= 0 ? '+' : ''}${mod}</div><div class="label">${a.substring(0,4)}</div></div>`;
+  });
+  attrHtml += '</div>';
+
+  let periHtml = '<div class="pericias-title">🎲 Perícias</div>';
+  const periEntries = Object.entries(PERICIAS_MAP);
+  periEntries.forEach(([nome, attr]) => {
+    const bonus = parseInt(pericias[nome] || 0);
+    const attrMod = attrBonus(attrData[attr]);
+    const total = bonus + attrMod;
+    const disp = total >= 0 ? '+' + total : String(total);
+    periHtml += `<div class="pericia-row" onclick="rolarPericia('${nome.replace(/'/g, "\\'")}')" title="Clique para rolar 1d20${total>=0?'+':''}${total}">
+      <span class="name">${nome}</span>
+      <span class="bonus">${disp}</span>
+      <button class="roll-btn">🎲</button>
+    </div>`;
+  });
+
+  center.innerHTML = attrHtml + periHtml;
+}
+
+function switchSheetTab(tab) {
+  sheetTab = tab;
+  document.querySelectorAll('.sheet-tab').forEach(b => b.classList.toggle('active', b.textContent.includes(tab==='inventario'?'Itens':tab==='habilidades'?'Habilidades':'Magias')));
+  renderSheetTabContent();
+}
+
+function renderSheetTabContent() {
+  const char = characters[meuCharacterId];
+  if (!char) return;
+  const d = char.data || {};
+  const container = document.getElementById('sheetTabContent');
+  if (!container) return;
+
+  if (sheetTab === 'inventario') {
+    const inv = d.inventario || [];
+    container.innerHTML = inv.length ? inv.map(i => `<div class="sheet-item"><span>${i.nome}</span><span class="text-dim">${i.atq||''}${i.dano?' ['+i.dano+']':''} ${i.espaco?'🗂️'+i.espaco:''}</span></div><div class="text-dim" style="font-size:10px;padding:0 0 4px;">${i.desc||''}</div>`).join('') : '<div class="text-dim" style="padding:8px;text-align:center;">Nenhum item</div>';
+  } else if (sheetTab === 'habilidades') {
+    const habs = d.habilidades || [];
+    container.innerHTML = habs.length ? habs.map(h => `<div class="sheet-item"><strong>${h.nome}</strong></div><div class="text-dim" style="font-size:10px;padding:0 0 4px;">${h.desc||''}</div>`).join('') : '<div class="text-dim" style="padding:8px;text-align:center;">Nenhuma habilidade</div>';
+  } else if (sheetTab === 'magias') {
+    const magias = d.magias || [];
+    container.innerHTML = magias.length ? magias.map(m => `<div class="sheet-item"><strong style="color:var(--purple)">${m.nome}</strong><span class="text-dim">${m.custo?'💧'+m.custo:''} ${m.dano?'⚔️'+m.dano:''}</span></div><div class="text-dim" style="font-size:10px;padding:0 0 4px;">${m.elemento||''} ${m.caminho||''}</div>`).join('') : '<div class="text-dim" style="padding:8px;text-align:center;">Nenhuma magia</div>';
+  }
+}
+
+// ── Master View ──────────────────────────────────────────────
+let hpModalCharId = null;
+
+function renderMasterView(left, center) {
+  const user = getUser();
+  const allChars = Object.values(characters);
+
+  left.innerHTML = `
+    <div style="text-align:center;font-weight:700;font-size:14px;color:var(--gold);margin-bottom:8px;">👑 MESTRE</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Online (${Object.keys(participants).length})</div>
+    <div id="masterPartList">${Object.values(participants).map(p => {
+      return `<div class="participant-item"><span class="dot"></span><span>${p.character ? p.character.name + ' (' + p.username + ')' : '👑 ' + p.username}</span></div>`;
+    }).join('')}</div>
+    ${allChars.length > 0 ? `
+      <div style="font-size:11px;color:var(--text-dim);margin-top:10px;margin-bottom:4px;">🎯 Todos os Agentes</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        ${allChars.map(c => `<button class="btn btn-ghost btn-sm" onclick="window.location.href='/campanha/${campaignId}/agente/${c.id}'">${c.name}</button>`).join('')}
+      </div>
+    ` : '<div class="text-dim" style="padding:12px;font-size:12px;text-align:center;">Nenhum personagem na campanha.</div>'}
+  `;
+
+  // Tab bar
+  let html = `
+    <div class="npc-tab-bar">
+      <button class="btn ${npcTab==='players'?'btn-gold':'btn-ghost'} btn-sm" onclick="switchNpcTab('players')">🎭 Players</button>
+      <button class="btn ${npcTab==='npcs'?'btn-gold':'btn-ghost'} btn-sm" onclick="switchNpcTab('npcs')">🗿 NPCs</button>
+    </div>
+  `;
+
+  if (npcTab === 'players') {
+    if (allChars.length === 0) {
+      center.innerHTML = html + '<div class="text-dim" style="padding:40px;text-align:center;font-size:14px;">🎭 Nenhum agente vinculado a esta campanha.</div>';
+      return;
+    }
+    html += '<div class="agent-grid">';
+    allChars.forEach(c => {
+      const d = c.data || {};
+      const st = d.status || {};
+      const hpAt = parseInt(st.hp_at || 0);
+      const hpMx = parseInt(st.hp_mx || 1);
+      const mpAt = parseInt(st.mp_at || 0);
+      const mpMx = parseInt(st.mp_mx || 1);
+      const hpPct = Math.max(0, Math.min(100, (hpAt / hpMx) * 100));
+      const mpPct = Math.max(0, Math.min(100, (mpAt / mpMx) * 100));
+      const lowHp = hpPct < 25;
+      html += `
+        <div class="agent-card ${lowHp?'low-hp':''}" onclick="window.location.href='/campanha/${campaignId}/agente/${c.id}'">
+          <div class="agent-info">
+            <div class="agent-avatar">${d.icone || (c.name&&c.name[0]) || '?'}</div>
+            <div class="agent-info-text">
+              <div class="name">${d.nome||c.name||'?'}</div>
+              <div class="sub">Nv ${c.level||'?'} · ${c.classe||'?'}</div>
+            </div>
+          </div>
+          <div class="agent-bar a-hp">
+            <div class="agent-bar-fill" style="width:${hpPct}%"></div>
+            <div class="agent-bar-text">❤️ ${hpAt}/${hpMx}</div>
+          </div>
+          <div class="agent-bar a-mp">
+            <div class="agent-bar-fill" style="width:${mpPct}%"></div>
+            <div class="agent-bar-text">💧 ${mpAt}/${mpMx}</div>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+  } else {
+    // ── NPCs Tab ──
+    const npcIds = Object.keys(npcs);
+    if (npcIds.length > 0) {
+      html += '<div class="agent-grid">';
+      npcIds.forEach(id => {
+        const n = npcs[id];
+        const d = n.data || {};
+        const st = d.status || {};
+        const hpAt = parseInt(st.hp_at || 0);
+        const hpMx = parseInt(st.hp_mx || 1);
+        const mpAt = parseInt(st.mp_at || 0);
+        const mpMx = parseInt(st.mp_mx || 1);
+        const hpPct = Math.max(0, Math.min(100, (hpAt / hpMx) * 100));
+        const mpPct = Math.max(0, Math.min(100, (mpAt / mpMx) * 100));
+        const lowHp = hpPct < 25;
+        html += `
+          <div class="agent-card ${lowHp?'low-hp':''}" onclick="window.location.href='/campanha/${campaignId}/npc/${id}'">
+            <div class="agent-info">
+              <div class="agent-avatar">${n.icone||'N'}</div>
+              <div class="agent-info-text">
+                <div class="name">${n.name||'NPC'}</div>
+                <div class="sub">🗿 NPC</div>
+              </div>
+            </div>
+            <div class="agent-bar a-hp">
+              <div class="agent-bar-fill" style="width:${hpPct}%"></div>
+              <div class="agent-bar-text">❤️ ${hpAt}/${hpMx}</div>
+            </div>
+            <div class="agent-bar a-mp">
+              <div class="agent-bar-fill" style="width:${mpPct}%"></div>
+              <div class="agent-bar-text">💧 ${mpAt}/${mpMx}</div>
+            </div>
+            <div style="display:flex;gap:4px;margin-top:4px;">
+              <button class="btn btn-ghost btn-sm" style="flex:1;font-size:10px;" onclick="event.stopPropagation();npcRoll('${id}','1d20')">🎲 1d20</button>
+              <button class="btn btn-ghost btn-sm" style="flex:1;font-size:10px;" onclick="event.stopPropagation();npcRoll('${id}','1d20+5')">🎲 +5</button>
+            </div>
+          </div>`;
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="text-dim" style="padding:40px;text-align:center;font-size:14px;">🗿 Nenhum NPC criado.</div>';
+    }
+    html += '<div style="text-align:center;margin-top:12px;"><button class="btn btn-gold" onclick="criarNpc()">➕ Adicionar NPC</button></div>';
+  }
+  center.innerHTML = html;
+}
+
+function switchNpcTab(tab) {
+  npcTab = tab;
+  renderFicha();
+}
+
+async function criarNpc() {
+  const res = await api('/campaigns/' + campaignId + '/npcs', {
+    method: 'POST',
+    body: JSON.stringify({ name: 'Novo NPC', icone: 'N' })
+  });
+  if (res && res.id) {
+    npcs[res.id] = res;
+    npcTab = 'npcs';
+    renderFicha();
+  }
+}
+
+function npcRoll(npcId, formula) {
+  const n = npcs[npcId];
+  if (!n) return;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ tipo: 'npc_roll', formula: formula, npc_name: n.name }));
+  }
+}
+
+// ── Master HP/MP Quick Edit ─────────────────────────────────
+function abrirModalHP(charId) {
+  hpModalCharId = charId;
+  const c = characters[charId];
+  if (!c) return;
+  const st = c.data.status || {};
+  document.getElementById('hpModalTitle').textContent = '✎ ' + c.name + ' — HP/MP';
+  document.getElementById('hpModalHp').value = st.hp_at || 0;
+  document.getElementById('hpModalMp').value = st.mp_at || 0;
+  document.getElementById('hpModal').classList.add('open');
+}
+
+function fecharHpModal() {
+  document.getElementById('hpModal').classList.remove('open');
+}
+
+function hpModDelta(stat, delta) {
+  const input = document.getElementById('hpModal' + stat.charAt(0).toUpperCase() + stat.slice(1));
+  input.value = Math.max(0, parseInt(input.value || 0) + delta);
+}
+
+function salvarHpModal() {
+  const id = hpModalCharId;
+  if (!id || !characters[id]) return;
+  const c = characters[id];
+  const st = c.data.status || {};
+  const newHp = parseInt(document.getElementById('hpModalHp').value) || 0;
+  const newMp = parseInt(document.getElementById('hpModalMp').value) || 0;
+  const mxHp = parseInt(st.hp_mx || 1);
+  const mxMp = parseInt(st.mp_mx || 1);
+  st.hp_at = String(Math.max(0, Math.min(mxHp, newHp)));
+  st.mp_at = String(Math.max(0, Math.min(mxMp, newMp)));
+  c.data.status = st;
+  enviarWs({ tipo: 'mestre_ficha_update', character_id: id, dados: { status: st } });
+  sendSystemMsg(`${c.name} HP/MP alterado (${st.hp_at}/${st.hp_mx} ❤️, ${st.mp_at}/${st.mp_mx} 💧)`);
+  fecharHpModal();
+  renderFicha();
+}
+
+function mestreModHP(charId, delta) {
+  const c = characters[charId]; if (!c) return;
+  const st = c.data.status || {};
+  const cur = parseInt(st.hp_at || 0);
+  const mx = parseInt(st.hp_mx || 1);
+  st.hp_at = String(Math.max(0, Math.min(mx, cur + delta)));
+  c.data.status = st;
+  enviarWs({ tipo: 'mestre_ficha_update', character_id: charId, dados: { status: st } });
+  sendSystemMsg(`${c.name} ${delta > 0 ? 'recuperou' : 'perdeu'} ${Math.abs(delta)} HP (${st.hp_at}/${st.hp_mx})`);
+  renderFicha();
+}
+
+function mestreModMP(charId, delta) {
+  const c = characters[charId]; if (!c) return;
+  const st = c.data.status || {};
+  const cur = parseInt(st.mp_at || 0);
+  const mx = parseInt(st.mp_mx || 1);
+  st.mp_at = String(Math.max(0, Math.min(mx, cur + delta)));
+  c.data.status = st;
+  enviarWs({ tipo: 'mestre_ficha_update', character_id: charId, dados: { status: st } });
+  sendSystemMsg(`${c.name} ${delta > 0 ? 'recuperou' : 'perdeu'} ${Math.abs(delta)} MP (${st.mp_at}/${st.mp_mx})`);
+  renderFicha();
+}
+
+function sendSystemMsg(texto) {
+  adicionarChat('SISTEMA', texto, 'system');
+}
+
+// ── Load Campaign ────────────────────────────────────────────
+async function carregarCampanha() {
+  try {
+  if (!campaignId) { window.location.href = '/dashboard'; return; }
+  const data = await api('/campaigns/' + campaignId);
+  if (!data || data.detail) { window.location.href = '/dashboard'; return; }
+
+  isMaster = data.is_master;
+  document.getElementById('campaignName').textContent = data.name;
+  const roleBadge = document.getElementById('roleBadge');
+  roleBadge.innerHTML = isMaster ? '<span class="dot" style="background:var(--gold);"></span> MESTRE' : '<span class="dot"></span> Jogador';
+  roleBadge.className = 'conn-status ' + (isMaster ? 'online' : 'offline');
+
+  const user = getUser();
+  characters = {};
+  (data.characters || []).forEach(c => {
+    // campaign_data is the authoritative data in campaign context
+    if (c.campaign_data && Object.keys(c.campaign_data).length > 0) {
+      c.data = c.campaign_data;
+    }
+    characters[c.id] = c;
+    if (user && c.user_id === user.id) meuCharacterId = c.id;
+  });
+  if (!isMaster) {
+    masterSelectedChar = meuCharacterId;
+  } else if (data.characters.length > 0) {
+    masterSelectedChar = data.characters[0].id;
+  }
+  npcs = data.npcs || {};
+
+  const box = document.getElementById('chatBox');
+  box.innerHTML = '';
+  (data.messages || []).forEach(m => {
+    const h = new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const cls = m.message_type === 'tell' ? 'chat-system' : m.message_type === 'roll' ? 'chat-roll' : m.message_type === 'system' ? 'chat-system' : 'chat-mestre';
+    const autorCls = m.author_name === 'SISTEMA' ? '' : (String(m.author_name).includes('MESTRE') || String(m.author_name).startsWith('🎲') ? 'chat-mestre' : 'chat-player');
+    box.innerHTML += `<div class="chat-msg"><span class="chat-time">[${h}]</span> <span class="chat-author ${autorCls}">${m.author_name}</span> <span class="${cls}">${m.content}</span></div>`;
+  });
+  box.scrollTop = box.scrollHeight;
+
+  renderFicha();
+  conectarWs();
+  } catch (e) {
+    console.error('carregarCampanha error:', e);
+    document.getElementById('campaignName').textContent = 'Erro';
+    document.getElementById('colLeft').innerHTML = `<div class="text-dim" style="padding:20px;text-align:center;">❌ Erro ao carregar campanha<br><span style="font-size:11px;">${e.message}</span><br><button class="btn btn-gold btn-sm" onclick="window.location.href='/dashboard'" style="margin-top:8px;">Dashboard</button></div>`;
+    document.getElementById('colCenter').innerHTML = '';
+  }
+}
+
+carregarCampanha();
+</script>
+
+<div class="cmd-modal" id="cmdModal" onclick="if(event.target===this)fecharComandos()">
+  <div class="cmd-modal-box">
+    <h3>Comandos do Chat</h3>
+    <div class="cmd-row"><code>/roll 1d20+5</code><div class="cmd-desc">Rola dados e mostra o resultado no chat</div></div>
+    <div class="cmd-row"><code>/tell Mestre sua mensagem</code><div class="cmd-desc">Envia mensagem privada só para o Mestre</div></div>
+    <div class="cmd-row"><code>/clear</code> ou <code>/limpar</code><div class="cmd-desc">Limpa o chat localmente (só pra você)</div></div>
+    <div class="cmd-row"><code>/ajuda</code><div class="cmd-desc">Mostra esta lista de comandos</div></div>
+    <div style="margin-top:14px;text-align:right;"><button class="btn btn-gold btn-sm" onclick="fecharComandos()">Fechar</button></div>
+  </div>
+</div>
+
+<script>
+function mostrarComandos() {
+  const modal = document.getElementById('cmdModal');
+  if (modal) modal.classList.toggle('open');
+}
+function fecharComandos() {
+  const modal = document.getElementById('cmdModal');
+  if (modal) modal.classList.remove('open');
+}
+</script>
+
+</body>
+</html>

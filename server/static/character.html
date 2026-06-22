@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personagem - Garvedrene System</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="/static/js/auth.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+
+    .editor-wrap { margin: 0 auto; padding: 20px; min-height: calc(100vh - 50px); display: flex; flex-direction: column; max-width: 100%; }
+    .editor-body { display: flex; gap: 16px; flex: 1; min-height: 0; }
+
+    /* ── Three columns ─────────────────────────────────────────── */
+    .col-left  { width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+    .col-center { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+    .col-right { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+
+    /* ── Header ────────────────────────────────────────────────── */
+    .top-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 16px; }
+    .top-bar input[type="text"] { flex: 1; font-size: 18px; padding: 6px 10px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 6px; outline: none; }
+    .top-bar input[type="text"]:focus { border-color: var(--gold); }
+    .top-bar input[type="number"] { width: 55px; text-align: center; font-size: 16px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 4px; }
+    .top-bar select { font-size: 14px; padding: 4px 8px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 6px; }
+    .top-bar label { font-size: 12px; color: var(--text-dim); }
+
+    /* ── HP / MP Bars (42px tall, centred text) ────────────────── */
+    .bar-wrap { position: relative; height: 42px; border-radius: 8px; overflow: hidden; border: 1px solid #333; }
+    .bar-fill { height: 100%; transition: width 0.3s; }
+    .bar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; text-shadow: 0 1px 4px rgba(0,0,0,0.9); gap: 6px; z-index: 1; }
+    .bar-hp .bar-fill { background: linear-gradient(90deg, #c0392b, #e74c3c); } .bar-hp { border-color: #c0392b; }
+    .bar-mp .bar-fill { background: linear-gradient(90deg, #1a5276, #2980b9); } .bar-mp { border-color: #1a5276; }
+    .bar-wrap input { width: 48px; text-align: center; font-size: 14px; font-weight: 700; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 4px; padding: 2px 4px; }
+
+    /* ── Status Fields ─────────────────────────────────────────── */
+    .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; min-width: 0; }
+    .stat-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .stat-field label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; }
+    .stat-field input,.stat-field select { font-size: 13px; padding: 5px 8px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 5px; width: 100%; min-width: 0; }
+
+    /* ── Attribute Cards ───────────────────────────────────────── */
+    .attr-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    .attr-card { position: relative; text-align: center; background: var(--bg-card); border: 2px solid var(--gold); border-radius: 14px; padding: 14px 6px 10px; transition: border-color 0.2s; }
+    .attr-card:hover { border-color: var(--gold-light); }
+    .attr-card .icon { font-size: 24px; margin-bottom: 2px; }
+    .attr-card .lbl { font-size: 10px; color: var(--gold); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .attr-card .val { font-size: 30px; font-weight: 900; line-height: 1.2; padding: 2px 0; }
+    .attr-card .mod { font-size: 11px; color: var(--text-dim); }
+    .attr-btn { position: absolute; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border); background: rgba(0,0,0,0.4); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; line-height: 1; transition: all 0.15s; padding: 0; }
+    .attr-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(0,0,0,0.6); }
+    .attr-btn.plus { top: 4px; right: 4px; }
+    .attr-btn.minus { top: 4px; left: 4px; }
+    .attr-roll { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: rgba(0,0,0,0.25); color: var(--text-dim); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; transition: all 0.15s; padding: 0; margin-top: 4px; }
+    .attr-roll:hover { border-color: var(--gold); color: var(--gold); background: rgba(0,0,0,0.5); }
+
+    /* ── Pericias (2-column grid, dot-leader style) ────────────── */
+    .peri-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 16px; }
+    .peri-row { display: flex; align-items: baseline; gap: 0; padding: 4px 6px; border-radius: 6px; transition: background 0.1s; cursor: default; }
+    .peri-row:hover { background: rgba(255,255,255,0.04); }
+    .peri-row .name { flex-shrink: 0; font-size: 12px; color: var(--text); max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .peri-row .dot-lead { flex: 1; min-width: 6px; border-bottom: 1px dotted #555; margin: 0 4px; }
+    .peri-row .right-group { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+    .peri-row input { width: 40px; font-size: 12px; text-align: center; background: transparent; border: none; color: var(--green-light); border-radius: 0; padding: 1px 2px; font-weight: 600; }
+    .peri-row input:focus { background: var(--bg-input); outline: none; }
+    .peri-row .roll-p { width: 24px; height: 24px; border-radius: 50%; border: none; background: transparent; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; flex-shrink: 0; padding: 0; }
+    .peri-row .roll-p:hover { background: var(--gold); color: #000; }
+
+    /* ── Section Titles ────────────────────────────────────────── */
+    .section-title { font-size: 11px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ── Accordion Cards ───────────────────────────────────────── */
+    .acc-group { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .acc-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: border-color 0.2s; }
+    .acc-item:hover { border-color: var(--gold); }
+    .acc-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; cursor: pointer; user-select: none; transition: background 0.15s; }
+    .acc-header:hover { background: rgba(255,255,255,0.04); }
+    .acc-header .arrow { font-size: 10px; color: var(--text-dim); transition: transform 0.2s; width: 12px; text-align: center; flex-shrink: 0; }
+    .acc-header .arrow.open { transform: rotate(90deg); }
+    .acc-header .acc-name { flex: 1; font-weight: 600; font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .acc-header .acc-tag { font-size: 10px; color: var(--text-dim); padding: 2px 8px; border-radius: 4px; background: var(--bg-input); flex-shrink: 0; }
+    .acc-header .acc-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .acc-body { display: none; padding: 0 14px 12px; font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+    .acc-body.open { display: block; }
+    .acc-body textarea, .acc-body input, .acc-body select { font-size: 12px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 5px 8px; outline: none; width: 100%; margin-top: 4px; }
+    .acc-body textarea:focus, .acc-body input:focus { border-color: var(--gold); }
+    .acc-body .edit-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .acc-body .edit-row > * { flex: 1; min-width: 70px; }
+
+    /* ── Espaços bar (inside inventario tab) ──────────────────── */
+    .espacos-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; padding: 6px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; flex-shrink: 0; }
+    .espacos-bar.hidden { display: none; }
+
+    /* ── Add Bar (top of right column) ─────────────────────────── */
+    .add-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-shrink: 0; }
+    .add-bar input { flex: 1; font-size: 12px; padding: 6px 10px; background: var(--bg-input); border: 1px dashed var(--border); color: var(--text); border-radius: 6px; outline: none; }
+    .add-bar input:focus { border-color: var(--gold); border-style: solid; }
+
+    /* ── Cards ─────────────────────────────────────────────────── */
+    .lcard { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px; }
+    .lcard-gold { border-color: var(--gold); }
+
+    /* ── Hide spinners ─────────────────────────────────────────── */
+    input.no-spin::-webkit-inner-spin-button, input.no-spin::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input.no-spin { -moz-appearance: textfield; appearance: textfield; }
+
+    /* ── Roll Toast Notifications (C.R.I.S. style) ────────────── */
+    .roll-toast-cont { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    .roll-toast { pointer-events: auto; background: var(--bg-card); border: 1px solid var(--gold); border-radius: 10px; padding: 12px 16px; min-width: 260px; max-width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); animation: rtIn 0.3s ease; }
+    .roll-toast.out { animation: rtOut 0.3s ease forwards; }
+    @keyframes rtIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes rtOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
+    .roll-toast-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .roll-toast-head .name { font-weight: 700; font-size: 13px; color: var(--gold); }
+    .roll-toast-head .cl { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 0; line-height: 1; }
+    .roll-toast-head .cl:hover { color: #fff; }
+    .roll-toast-body { display: flex; flex-direction: column; gap: 4px; }
+    .roll-toast-body .res { font-size: 28px; font-weight: 900; color: var(--green-light); }
+    .roll-toast-body .det { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+
+    /* ── Small formula roll button inside accordion body ──────── */
+    .roll-sm { width: 22px; height: 22px; border-radius: 50%; border: none; background: transparent; color: var(--text-dim); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; padding: 0; transition: all 0.15s; margin-top: 4px; }
+    .roll-sm:hover { background: var(--gold); color: #000; }
+
+    /* ── Save Toast ────────────────────────────────────────────── */
+    .toast { position: fixed; bottom: 24px; right: 24px; z-index: 999; background: var(--green); color: #fff; padding: 10px 24px; border-radius: 8px; font-weight: 600; font-size: 13px; display: none; box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+
+    /* ── Tabs ──────────────────────────────────────────────────── */
+    .inv-tabs { display: flex; gap: 2px; margin-bottom: 8px; flex-shrink: 0; background: #111; border-radius: var(--radius); padding: 3px; }
+    .inv-tabs .tab-btn { padding: 6px 14px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: var(--text-dim); transition: all 0.15s; flex: 1; text-align: center; }
+    .inv-tabs .tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .inv-tabs .tab-btn.active { background: var(--gold); color: #000; }
+
+    /* ── Right column scrollable content ───────────────────────── */
+    .right-scroll { flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; }
+
+    @media (max-width: 1000px) {
+      .editor-body { flex-direction: column; }
+      .col-left, .col-center, .col-right { width: 100% !important; flex-shrink: 1; }
+      .attr-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="navbar">
+  <div class="navbar-brand">⚔️ GARVEDRENE SYSTEM</div>
+  <div class="navbar-info">
+    <span id="userName" style="font-size:13px;color:var(--text-dim);"></span>
+    <button class="btn btn-ghost btn-sm" onclick="window.location.href='/dashboard'">← Dashboard</button>
+  </div>
+</div>
+
+<div class="editor-wrap">
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <input type="text" id="ceNome" placeholder="Nome do Personagem">
+    <label>Nv</label>
+    <input type="number" id="ceNivel" value="1" class="no-spin">
+    <select id="ceClasse">
+      <option>Bruxo</option><option>Feiticeiro</option><option>Suporte</option>
+    </select>
+    <span style="flex:1;"></span>
+    <button class="btn btn-gold" onclick="salvar()">💾 Salvar</button>
+  </div>
+
+  <div class="editor-body">
+    <!-- ── COLUMN 1 — Status ──────────────────────────────────── -->
+    <div class="col-left">
+      <div class="lcard lcard-gold">
+        <div class="section-title" style="margin-bottom:10px;">Status Vitais</div>
+        <div class="bar-wrap bar-hp">
+          <div class="bar-fill" id="ceBarHpFill" style="width:100%"></div>
+          <div class="bar-text">❤️ <input type="number" id="ceHpAt" value="20" class="no-spin"> / <input type="number" id="ceHpMx" value="20" class="no-spin"></div>
+        </div>
+        <div style="height:8px;"></div>
+        <div class="bar-wrap bar-mp">
+          <div class="bar-fill" id="ceBarMpFill" style="width:100%"></div>
+          <div class="bar-text">💧 <input type="number" id="ceMpAt" value="20" class="no-spin"> / <input type="number" id="ceMpMx" value="20" class="no-spin"></div>
+        </div>
+      </div>
+
+      <div class="lcard">
+        <div class="status-grid">
+          <div class="stat-field">
+            <label>🛡️ CA</label>
+            <input type="number" id="ceCA" value="10" class="no-spin">
+          </div>
+          <div class="stat-field">
+            <label>✨ Elemento</label>
+            <select id="ceElemento">
+              <option>IGNIS</option><option>AQUA</option><option>VENTUS</option><option>TERRA</option><option>NATURA</option><option>ANIMA</option>
+            </select>
+          </div>
+          <div class="stat-field">
+            <label>🌀 Caminho</label>
+            <select id="ceCaminho">
+              <option>Fogo</option><option>Luz</option><option>Eletricidade</option><option>Gelo</option><option>Água</option><option>Vapor</option><option>Clima</option><option>Vento</option><option>Areia</option><option>Metal</option><option>Pedra</option><option>Cristal</option><option>Planta</option><option>Animal</option><option>Regeneração</option><option>Arte</option><option>Música</option><option>Esporte</option><option>Teatro</option><option>Misto</option>
+            </select>
+          </div>
+          <div class="stat-field">
+            <label>📜 Origem</label>
+            <input type="text" id="ceOrigem" placeholder="Background...">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── COLUMN 2 — Atributos + Perícias ────────────────────── -->
+    <div class="col-center">
+      <div class="lcard">
+        <div class="section-title">Atributos</div>
+        <div class="attr-grid" id="ceAtributos"></div>
+      </div>
+
+      <div class="lcard">
+        <div class="section-title">Perícias</div>
+        <div class="peri-list" id="cePericias"></div>
+      </div>
+    </div>
+
+    <!-- ── COLUMN 3 — Inventário, Habilidades, Magias ─────────── -->
+    <div class="col-right">
+      <div class="section-title" style="margin-bottom:4px;flex-shrink:0;">Inventário & Habilidades</div>
+
+      <div class="inv-tabs">
+        <button class="tab-btn active" id="tabInventario" onclick="switchTab('inventario')">⚔️ Itens</button>
+        <button class="tab-btn" id="tabHabilidades" onclick="switchTab('habilidades')">✨ Habilidades</button>
+        <button class="tab-btn" id="tabMagias" onclick="switchTab('magias')">🔮 Magias</button>
+      </div>
+
+      <div class="espacos-bar" id="espacosBar">
+        <span style="font-size:12px;color:var(--text-dim);flex-shrink:0;">🎒 Espaços</span>
+        <input type="number" id="ceEspAt" value="0" class="no-spin" style="width:52px;text-align:center;font-size:13px;padding:3px;">
+        <span style="color:var(--text-dim);font-size:14px;">/</span>
+        <input type="number" id="ceEspMx" value="10" class="no-spin" style="width:52px;text-align:center;font-size:13px;padding:3px;">
+      </div>
+
+      <div class="add-bar">
+        <input type="text" id="tabAddInput" placeholder="Nome do item...">
+        <button class="btn btn-green btn-sm" onclick="tabAddItem()">+ Adicionar</button>
+      </div>
+
+      <div class="right-scroll" id="tabContent"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✅ Salvo!</div>
+<div class="roll-toast-cont" id="rollToastCont"></div>
+
+<script>
+if (!isLoggedIn()) {
+  localStorage.setItem('redirect_after_login', window.location.href);
+  window.location.href = '/';
+}
+const user = getUser();
+if (user) document.getElementById('userName').textContent = user.username;
+
+const charId = window.location.pathname.split('/').pop();
+let editingCharId = charId && charId !== 'novo' ? charId : null;
+
+const ATRIBUTOS = ["Força","Agilidade","Vigor","Inteligência","Espírito"];
+const ATTR_ICONES = {"Força":"💪","Agilidade":"⚡","Vigor":"❤️","Inteligência":"🧠","Espírito":"✨"};
+const PERICIAS_MAP = {
+  "Adestramento (E)":"Espírito","Artes (I/E)":"Inteligência","Atletismo (F/A)":"Força",
+  "Ciências (I)":"Inteligência","Crime (I)":"Inteligência","Culinária (I)":"Inteligência",
+  "Diplomacia (E)":"Espírito","Enganação (E)":"Espírito","Fortitude (V)":"Vigor",
+  "Furtividade (A)":"Agilidade","História (I)":"Inteligência","Iniciativa (A)":"Agilidade",
+  "Intimidação (E)":"Espírito","Intuição (E)":"Espírito","Investigação (I)":"Inteligência",
+  "Luta (F)":"Força","Medicina (I)":"Inteligência","Natureza (I)":"Inteligência",
+  "Percepção (E)":"Espírito","Pilotagem (I)":"Inteligência","Pontaria (A)":"Agilidade",
+  "Profissão (I)":"Inteligência","Reflexos (A)":"Agilidade","Sobrevivência (I)":"Inteligência",
+  "Sorte (E)":"Espírito","Tecnologia (I)":"Inteligência"
+};
+
+function attrBonus(v) { return Math.floor((parseInt(v||8)-10)/2); }
+
+// ── Data State ───────────────────────────────────────────────
+let ceEntradasBase = {};
+let ceBonusPericias = {};
+let ceItensData = [];
+let ceHabsData = [];
+let ceMagiasData = [];
+let currentTab = 'inventario';
+
+// ── Build Attributes ─────────────────────────────────────────
+function construirAtributos() {
+  const container = document.getElementById('ceAtributos');
+  container.innerHTML = '';
+  ceEntradasBase = {};
+  ATRIBUTOS.forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'attr-card';
+    div.innerHTML = `
+      <button class="attr-btn minus" onclick="modAttr('${a}',-1)">−</button>
+      <button class="attr-btn plus" onclick="modAttr('${a}',1)">+</button>
+      <div class="icon">${ATTR_ICONES[a]}</div>
+      <div class="lbl">${a}</div>
+      <div class="val">8</div>
+      <div class="mod">+0</div>
+      <button class="attr-roll" onclick="rolarAtributo('${a}')" title="Rolar ${a}">🎲</button>
+    `;
+    container.appendChild(div);
+    ceEntradasBase[a] = { val: div.querySelector('.val'), mod: div.querySelector('.mod') };
+    const v = parseInt(ceEntradasBase[a].val.textContent);
+    ceEntradasBase[a].mod.textContent = (attrBonus(v) >= 0 ? '+' : '') + attrBonus(v);
+  });
+}
+
+function modAttr(attr, delta) {
+  const entry = ceEntradasBase[attr];
+  if (!entry) return;
+  const v = Math.max(1, parseInt(entry.val.textContent) + delta);
+  entry.val.textContent = v;
+  entry.mod.textContent = (attrBonus(v) >= 0 ? '+' : '') + attrBonus(v);
+}
+
+// ── Roll Toast ───────────────────────────────────────────────
+function rolarPericia(nome) {
+  const attr = PERICIAS_MAP[nome];
+  const attrVal = parseInt(ceEntradasBase[attr]?.val?.textContent || 8);
+  const mod = attrBonus(attrVal);
+  const bonus = parseInt(ceBonusPericias[nome]?.value || 0);
+  const dice = Math.floor(Math.random() * 20) + 1;
+  const total = mod + bonus + dice;
+  const s1 = mod >= 0 ? '+' : '';
+  const s2 = bonus >= 0 ? '+' : '';
+  const detail = `1d20 (${dice}) ${s1}${mod} (${attr}) ${s2}${bonus} (perícia)`;
+
+  const container = document.getElementById('rollToastCont');
+  const el = document.createElement('div');
+  el.className = 'roll-toast';
+  el.innerHTML = `
+    <div class="roll-toast-head">
+      <span class="name">🎲 ${nome}</span>
+      <button class="cl" onclick="this.closest('.roll-toast').classList.add('out');setTimeout(()=>this.closest('.roll-toast').remove(),300)">✕</button>
+    </div>
+    <div class="roll-toast-body">
+      <span class="res">${total}</span>
+      <span class="det">${detail}</span>
+    </div>
+  `;
+  container.appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 4500);
+}
+
+// ── Generic Formula Roll ────────────────────────────────────
+function rolarFormula(formula, nome) {
+  const f = (formula || '').toLowerCase().replace(/\s/g, '');
+  if (!f) { mostrarToast('⚠️ Preencha a fórmula antes de rolar', 2000); return; }
+  const partes = f.match(/[+-]?\d*d\d+|[+-]?\d+/g);
+  if (!partes) { mostrarToast('⚠️ Fórmula inválida: ' + formula, 2000); return; }
+  let total = 0, det = [];
+  for (const p of partes) {
+    if (p.includes('d')) {
+      const m = p.match(/^([+-]?)(\d*)d(\d+)$/);
+      if (!m) continue;
+      const s = m[1] === '-' ? -1 : 1;
+      const q = parseInt(m[2] || '1');
+      const faces = parseInt(m[3]);
+      const rolls = Array.from({ length: q }, () => Math.floor(Math.random() * faces) + 1);
+      const sub = rolls.reduce((a, b) => a + b, 0) * s;
+      total += sub;
+      det.push((s === -1 ? '-' : '') + '[' + rolls.join('+') + ']');
+    } else {
+      total += parseInt(p);
+      det.push(p);
+    }
+  }
+  const detail = det.join(' + ');
+  const el = document.createElement('div');
+  el.className = 'roll-toast';
+  el.innerHTML = `
+    <div class="roll-toast-head">
+      <span class="name">🎲 ${nome}</span>
+      <button class="cl" onclick="this.closest('.roll-toast').classList.add('out');setTimeout(()=>this.closest('.roll-toast').remove(),300)">✕</button>
+    </div>
+    <div class="roll-toast-body">
+      <span class="res">${total}</span>
+      <span class="det">${formula} = ${detail}</span>
+    </div>`;
+  document.getElementById('rollToastCont').appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 4500);
+}
+
+// ── Auto-calc Espaços ───────────────────────────────────────
+function calcEspacos() {
+  const total = ceItensData.reduce((s, i) => s + (parseInt(i.espaco) || 1), 0);
+  document.getElementById('ceEspAt').value = total;
+}
+
+// ── Small inline toast (for warnings) ───────────────────────
+function mostrarToast(msg, ms) {
+  const el = document.createElement('div');
+  el.className = 'roll-toast';
+  el.innerHTML = `<div class="roll-toast-head"><span class="name">${msg}</span><button class="cl" onclick="this.closest('.roll-toast').classList.add('out');setTimeout(()=>this.closest('.roll-toast').remove(),300)">✕</button></div>`;
+  document.getElementById('rollToastCont').appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, ms || 2500);
+}
+
+// ── Roll Attribute ──────────────────────────────────────────
+function rolarAtributo(attr) {
+  const entry = ceEntradasBase[attr];
+  if (!entry) return;
+  const v = parseInt(entry.val.textContent);
+  const mod = attrBonus(v);
+  const dice = Math.floor(Math.random() * 20) + 1;
+  const total = dice + mod;
+  const el = document.createElement('div');
+  el.className = 'roll-toast';
+  el.innerHTML = `
+    <div class="roll-toast-head">
+      <span class="name">🎲 ${attr}</span>
+      <button class="cl" onclick="this.closest('.roll-toast').classList.add('out');setTimeout(()=>this.closest('.roll-toast').remove(),300)">✕</button>
+    </div>
+    <div class="roll-toast-body">
+      <span class="res">${total}</span>
+      <span class="det">1d20 (${dice}) ${mod >= 0 ? '+' : ''}${mod} (${attr})</span>
+    </div>`;
+  document.getElementById('rollToastCont').appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 4500);
+}
+
+function construirPericias() {
+  const container = document.getElementById('cePericias');
+  container.innerHTML = '';
+  ceBonusPericias = {};
+  Object.entries(PERICIAS_MAP).forEach(([nome, attr]) => {
+    const div = document.createElement('div');
+    div.className = 'peri-row';
+    div.innerHTML = `
+      <span class="name" title="${nome}">${nome}</span>
+      <span class="dot-lead"></span>
+      <span class="right-group">
+        <input type="number" value="0" class="no-spin">
+        <button class="roll-p" onclick="rolarPericia('${nome.replace(/'/g, "\\'")}')" title="Rolar ${nome}">🎲</button>
+      </span>
+    `;
+    container.appendChild(div);
+    ceBonusPericias[nome] = div.querySelector('input');
+  });
+}
+
+// ── Tab Switching ────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.inv-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  const addInput = document.getElementById('tabAddInput');
+  document.getElementById('espacosBar').classList.toggle('hidden', tab !== 'inventario');
+  if (tab === 'inventario') addInput.placeholder = 'Nome do item...';
+  else if (tab === 'habilidades') addInput.placeholder = 'Nome da habilidade...';
+  else addInput.placeholder = 'Nome da magia...';
+  renderTabContent();
+}
+
+function tabAddItem() {
+  const input = document.getElementById('tabAddInput');
+  const nome = input.value.trim();
+  if (!nome) return;
+  if (currentTab === 'inventario') {
+    ceItensData.push({ nome, atq: '', dano: '', espaco: '1', desc: '' });
+  } else if (currentTab === 'habilidades') {
+    ceHabsData.push({ nome, desc: '' });
+  } else {
+    ceMagiasData.push({ nome, elemento: 'IGNIS', caminho: 'Fogo', pericia: 'Artes (I/E)', custo: '', dano: '' });
+  }
+  input.value = '';
+  renderTabContent();
+}
+
+function updateItem(idx, field, value) {
+  if (currentTab === 'inventario') {
+    ceItensData[idx][field] = value;
+    if (field === 'espaco') calcEspacos();
+  } else if (currentTab === 'habilidades') ceHabsData[idx][field] = value;
+  else ceMagiasData[idx][field] = value;
+}
+
+function removeTabItem(idx) {
+  if (currentTab === 'inventario') ceItensData.splice(idx, 1);
+  else if (currentTab === 'habilidades') ceHabsData.splice(idx, 1);
+  else ceMagiasData.splice(idx, 1);
+  renderTabContent();
+}
+
+function toggleAccordion(header) {
+  const body = header.nextElementSibling;
+  const arrow = header.querySelector('.arrow');
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+
+// ── Render Tab ───────────────────────────────────────────────
+function renderTabContent() {
+  const container = document.getElementById('tabContent');
+  if (currentTab === 'inventario') renderAccordion(container, ceItensData, renderItemAccordion);
+  else if (currentTab === 'habilidades') renderAccordion(container, ceHabsData, renderHabAccordion);
+  else renderAccordion(container, ceMagiasData, renderMagiaAccordion);
+  calcEspacos();
+}
+
+function renderAccordion(container, data, renderFn) {
+  if (data.length === 0) {
+    container.innerHTML = '<div class="text-dim" style="padding:24px 16px;text-align:center;font-size:13px;">Nada aqui. Use o campo acima para adicionar.</div>';
+    return;
+  }
+  container.innerHTML = '<div class="acc-group"></div>';
+  const group = container.querySelector('.acc-group');
+  data.forEach((item, idx) => {
+    group.appendChild(renderFn(item, idx));
+  });
+}
+
+function renderItemAccordion(item, idx) {
+  const div = document.createElement('div');
+  div.className = 'acc-item';
+  div.innerHTML = `
+    <div class="acc-header" onclick="toggleAccordion(this)">
+      <span class="arrow">▶</span>
+      <span class="acc-name">${item.nome || '(sem nome)'}</span>
+      <span class="acc-tag">🗂️ ${item.espaco || '1'}</span>
+      <span class="acc-actions">
+        <button class="btn btn-red btn-sm" onclick="event.stopPropagation();removeTabItem(${idx})">✕</button>
+      </span>
+    </div>
+    <div class="acc-body">
+      <div class="edit-row">
+        <input type="text" value="${item.nome.replace(/"/g,'&quot;')}" placeholder="Nome" oninput="updateItem(${idx},'nome',this.value)">
+        <div style="display:flex;align-items:center;gap:2px;flex:1;">
+          <input data-idx="${idx}" data-field="atq" type="text" value="${item.atq||''}" placeholder="Ataque (ex: 1d20+5)" oninput="updateItem(${idx},'atq',this.value)" style="flex:1;">
+          <button class="roll-sm" onclick="rolarFormula(this.previousElementSibling.value,'${(item.nome||'Item').replace(/'/g,"\\'")} Ataque')" title="Rolar Ataque">🎲</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:2px;flex:1;">
+          <input data-idx="${idx}" data-field="dano" type="text" value="${item.dano||''}" placeholder="Dano (ex: 2d6+3)" oninput="updateItem(${idx},'dano',this.value)" style="flex:1;">
+          <button class="roll-sm" onclick="rolarFormula(this.previousElementSibling.value,'${(item.nome||'Item').replace(/'/g,"\\'")} Dano')" title="Rolar Dano">🎲</button>
+        </div>
+        <input type="number" value="${item.espaco||'1'}" placeholder="Espaço" class="no-spin" oninput="updateItem(${idx},'espaco',this.value);calcEspacos()" style="width:50px;">
+      </div>
+      <textarea placeholder="Descrição..." oninput="updateItem(${idx},'desc',this.value)">${item.desc||''}</textarea>
+    </div>
+  `;
+  return div;
+}
+
+function renderHabAccordion(hab, idx) {
+  const div = document.createElement('div');
+  div.className = 'acc-item';
+  div.innerHTML = `
+    <div class="acc-header" onclick="toggleAccordion(this)">
+      <span class="arrow">▶</span>
+      <span class="acc-name">${hab.nome || '(sem nome)'}</span>
+      <span class="acc-actions">
+        <button class="btn btn-red btn-sm" onclick="event.stopPropagation();removeTabItem(${idx})">✕</button>
+      </span>
+    </div>
+    <div class="acc-body">
+      <input type="text" value="${hab.nome.replace(/"/g,'&quot;')}" placeholder="Nome da habilidade" oninput="updateItem(${idx},'nome',this.value)" style="margin-bottom:4px;">
+      <textarea placeholder="Descrição da habilidade..." oninput="updateItem(${idx},'desc',this.value)">${hab.desc||''}</textarea>
+    </div>
+  `;
+  return div;
+}
+
+function renderMagiaAccordion(mag, idx) {
+  const caminhos = ["Fogo","Luz","Eletricidade","Gelo","Água","Vapor","Clima","Vento","Areia","Metal","Pedra","Cristal","Planta","Animal","Regeneração","Arte","Música","Esporte","Teatro","Misto"];
+  const periOpts = Object.keys(PERICIAS_MAP).map(k => `<option ${k===mag.pericia?'selected':''}>${k}</option>`).join('');
+  const caminhoOpts = caminhos.map(c => `<option ${c===mag.caminho?'selected':''}>${c}</option>`).join('');
+  const elemOpts = ["IGNIS","AQUA","VENTUS","TERRA","NATURA","ANIMA"].map(e => `<option ${e===mag.elemento?'selected':''}>${e}</option>`).join('');
+  const div = document.createElement('div');
+  div.className = 'acc-item';
+  div.style.borderColor = 'var(--purple)';
+  div.innerHTML = `
+    <div class="acc-header" onclick="toggleAccordion(this)">
+      <span class="arrow">▶</span>
+      <span class="acc-name" style="color:var(--purple)">${mag.nome || '(sem nome)'}</span>
+      <span class="acc-tag">💧${mag.custo||'?'}</span>
+      <span class="acc-tag">⚔️${mag.dano||'?'}</span>
+      <span class="acc-actions">
+        <button class="btn btn-red btn-sm" onclick="event.stopPropagation();removeTabItem(${idx})">✕</button>
+      </span>
+    </div>
+    <div class="acc-body">
+      <div class="edit-row">
+        <input type="text" value="${mag.nome.replace(/"/g,'&quot;')}" placeholder="Nome" oninput="updateItem(${idx},'nome',this.value)">
+        <input type="text" value="${mag.custo||''}" placeholder="Custo (Mana)" oninput="updateItem(${idx},'custo',this.value)">
+        <div style="display:flex;align-items:center;gap:2px;flex:1;">
+          <input type="text" value="${mag.dano||''}" placeholder="Dano (ex: 2d6+3)" oninput="updateItem(${idx},'dano',this.value)" style="flex:1;">
+          <button class="roll-sm" onclick="rolarFormula(this.previousElementSibling.value,'${(mag.nome||'Magia').replace(/'/g,"\\'")} Dano')" title="Rolar Dano">🎲</button>
+        </div>
+      </div>
+      <div class="edit-row">
+        <select onchange="updateItem(${idx},'elemento',this.value)">${elemOpts}</select>
+        <select onchange="updateItem(${idx},'caminho',this.value)">${caminhoOpts}</select>
+        <select onchange="updateItem(${idx},'pericia',this.value)">${periOpts}</select>
+      </div>
+    </div>
+  `;
+  return div;
+}
+
+// ── Bar Updates ──────────────────────────────────────────────
+function atualizarBarras() {
+  ['hp','mp'].forEach(p => {
+    const at = document.getElementById('ce' + p.charAt(0).toUpperCase() + p.slice(1) + 'At');
+    const mx = document.getElementById('ce' + p.charAt(0).toUpperCase() + p.slice(1) + 'Mx');
+    const bar = document.getElementById('ceBar' + p.charAt(0).toUpperCase() + p.slice(1) + 'Fill');
+    if (bar) {
+      const pct = Math.max(0, Math.min(100, (parseFloat(at?.value||0) / Math.max(1, parseFloat(mx?.value||1))) * 100));
+      bar.style.width = pct + '%';
+    }
+  });
+}
+document.querySelectorAll('#ceHpAt, #ceHpMx, #ceMpAt, #ceMpMx').forEach(el => { if (el) el.addEventListener('input', atualizarBarras); });
+
+// ── Save / Load ──────────────────────────────────────────────
+async function carregar() {
+  if (!editingCharId) {
+    construirAtributos();
+    construirPericias();
+    switchTab('inventario');
+    return;
+  }
+  const data = await api('/characters');
+  if (!data) { window.location.href = '/dashboard'; return; }
+  const char = data.characters.find(c => c.id === editingCharId);
+  if (!char) { window.location.href = '/dashboard'; return; }
+
+  document.getElementById('ceNome').value = char.name;
+  document.getElementById('ceNivel').value = char.level;
+  document.getElementById('ceClasse').value = char.classe;
+
+  construirAtributos();
+  construirPericias();
+
+  const d = char.data || {};
+  document.getElementById('ceCA').value = d.ca || '10';
+  document.getElementById('ceElemento').value = d.elemento || 'IGNIS';
+  document.getElementById('ceCaminho').value = d.caminho || 'Fogo';
+  document.getElementById('ceOrigem').value = d.origem || '';
+  document.getElementById('ceHpAt').value = d.status?.hp_at || '20';
+  document.getElementById('ceHpMx').value = d.status?.hp_mx || '20';
+  document.getElementById('ceMpAt').value = d.status?.mp_at || '20';
+  document.getElementById('ceMpMx').value = d.status?.mp_mx || '20';
+  document.getElementById('ceEspAt').value = d.espaco_atual || '0';
+  document.getElementById('ceEspMx').value = d.espaco_max || '10';
+
+  if (d.atributos) {
+    ATRIBUTOS.forEach(a => {
+      if (ceEntradasBase[a]) {
+        const v = parseInt(d.atributos[a] || 8);
+        ceEntradasBase[a].val.textContent = v;
+        ceEntradasBase[a].mod.textContent = (attrBonus(v) >= 0 ? '+' : '') + attrBonus(v);
+      }
+    });
+  }
+  if (d.pericias) Object.keys(d.pericias).forEach(p => { if (ceBonusPericias[p]) ceBonusPericias[p].value = d.pericias[p] || '0'; });
+
+  ceItensData = (d.inventario || []).map(i => ({ ...i }));
+  ceHabsData = (d.habilidades || []).map(h => ({ ...h }));
+  ceMagiasData = (d.magias || []).map(m => ({ ...m }));
+
+  atualizarBarras();
+  switchTab('inventario');
+}
+
+async function salvar() {
+  const nome = document.getElementById('ceNome').value.trim();
+  if (!nome) { alert('Nome é obrigatório'); return; }
+
+  const data = {
+    nome, nivel: parseInt(document.getElementById('ceNivel').value) || 1,
+    classe: document.getElementById('ceClasse').value,
+    atributos: {}, pericias: {},
+    status: { hp_at: document.getElementById('ceHpAt').value, hp_mx: document.getElementById('ceHpMx').value, mp_at: document.getElementById('ceMpAt').value, mp_mx: document.getElementById('ceMpMx').value },
+    elemento: document.getElementById('ceElemento').value,
+    caminho: document.getElementById('ceCaminho').value,
+    origem: document.getElementById('ceOrigem').value,
+    ca: document.getElementById('ceCA').value,
+    espaco_atual: document.getElementById('ceEspAt').value, espaco_max: document.getElementById('ceEspMx').value,
+    inventario: ceItensData.map(i => ({ ...i })),
+    habilidades: ceHabsData.map(h => ({ ...h })),
+    magias: ceMagiasData.map(m => ({ ...m })),
+    icone: nome[0].toUpperCase()
+  };
+  ATRIBUTOS.forEach(a => { data.atributos[a] = parseInt(ceEntradasBase[a]?.val?.textContent || 8); });
+  Object.keys(ceBonusPericias).forEach(p => { data.pericias[p] = ceBonusPericias[p]?.value || '0'; });
+
+  try {
+    if (editingCharId) {
+      await api('/characters/' + editingCharId, { method: 'PUT', body: JSON.stringify({ name: nome, level: data.nivel, classe: data.classe, data }) });
+    } else {
+      const res = await api('/characters', { method: 'POST', body: JSON.stringify({ name: nome, level: data.nivel, classe: data.classe, data }) });
+      if (res && res.id) editingCharId = res.id;
+    }
+    const t = document.getElementById('toast');
+    t.style.display = 'block'; t.textContent = '✅ Personagem salvo!';
+    setTimeout(() => t.style.display = 'none', 2000);
+  } catch (err) { alert('Erro ao salvar: ' + (err.message || 'desconhecido')); }
+}
+
+carregar();
+</script>
+</body>
+</html>

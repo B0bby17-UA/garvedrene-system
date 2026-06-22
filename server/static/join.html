@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entrar na Campanha - Garvedrene System</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="/static/js/auth.js"></script>
+</head>
+<body>
+<div style="max-width:600px;margin:80px auto;padding:20px;">
+  <div class="card" id="joinCard" style="text-align:center;padding:40px;">
+    <div style="font-size:48px;margin-bottom:16px;">🔗</div>
+    <h2 style="color:var(--gold);margin-bottom:8px;">Entrar na Campanha</h2>
+    <p class="text-dim" id="joinInfo">Carregando informações do convite...</p>
+    <div id="joinForm" style="display:none;margin-top:24px;">
+      <p class="mb-3" style="font-size:14px;">Selecione com qual personagem você deseja entrar:</p>
+      <div id="charOptions" class="flex flex-col gap-2" style="max-width:400px;margin:0 auto 20px;"></div>
+      <button class="btn btn-gold" id="joinBtn" onclick="confirmarEntrada()" style="padding:12px 32px;font-size:16px;" disabled>Entrar na Campanha</button>
+    </div>
+    <div id="joinError" style="display:none;color:var(--red);margin-top:16px;"></div>
+  </div>
+</div>
+
+<script>
+if (!isLoggedIn()) {
+  localStorage.setItem('redirect_after_login', window.location.href);
+  window.location.href = '/';
+}
+
+const params = new URLSearchParams(window.location.search);
+const codigo = params.get('codigo');
+let campaignData = null;
+let selectedCharId = null;
+
+async function init() {
+  if (!codigo) {
+    document.getElementById('joinInfo').textContent = 'Link de convite inválido.';
+    return;
+  }
+  try {
+    campaignData = await api('/invite/' + codigo);
+    if (!campaignData || !campaignData.campaign_id) {
+      document.getElementById('joinInfo').textContent = 'Convite inválido ou expirado.';
+      return;
+    }
+    document.getElementById('joinInfo').textContent = `Você foi convidado para a campanha "${campaignData.campaign_name}" mestrada por ${campaignData.master_name}.`;
+    document.getElementById('joinForm').style.display = 'block';
+
+    const chars = await api('/characters');
+    const container = document.getElementById('charOptions');
+    if (!chars || !chars.characters || chars.characters.length === 0) {
+      container.innerHTML = '<p class="text-dim">Você não tem personagens.<br>Crie um personagem no Dashboard primeiro.</p>';
+      return;
+    }
+    container.innerHTML = '';
+    chars.characters.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'char-card';
+      div.style.cssText = 'cursor:pointer;padding:12px 16px;text-align:left;display:flex;align-items:center;gap:12px;';
+      const icon = (c.data && c.data.icone) || c.name[0].toUpperCase() || '?';
+      div.innerHTML = `
+        <div style="width:40px;height:40px;border-radius:50%;background:var(--gold);color:#000;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;flex-shrink:0;">${icon}</div>
+        <div><div style="font-weight:700;">${c.name}</div><div class="text-sm text-dim">Nv ${c.level} ${c.classe}</div></div>
+      `;
+      div.onclick = () => {
+        document.querySelectorAll('#charOptions .char-card').forEach(el => el.style.borderColor = 'var(--border)');
+        div.style.borderColor = 'var(--gold)';
+        selectedCharId = c.id;
+        document.getElementById('joinBtn').disabled = false;
+      };
+      container.appendChild(div);
+    });
+  } catch (e) {
+    document.getElementById('joinInfo').textContent = 'Erro ao carregar convite.';
+  }
+}
+
+async function confirmarEntrada() {
+  if (!selectedCharId || !campaignData) return;
+  const btn = document.getElementById('joinBtn');
+  btn.disabled = true; btn.textContent = 'Entrando...';
+  try {
+    const res = await api(`/invite/${codigo}/join`, {
+      method: 'POST',
+      body: JSON.stringify({ character_id: selectedCharId })
+    });
+    if (res.status === 'ok' || res.campaign_id) {
+      window.location.href = '/campanha/' + (res.campaign_id || campaignData.campaign_id);
+    } else {
+      document.getElementById('joinError').textContent = res.detail || 'Erro ao entrar';
+      document.getElementById('joinError').style.display = 'block';
+    }
+  } catch (e) {
+    document.getElementById('joinError').textContent = 'Erro: ' + e.message;
+    document.getElementById('joinError').style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = 'Entrar na Campanha';
+}
+
+init();
+</script>
+</body>
+</html>
